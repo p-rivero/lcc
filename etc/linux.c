@@ -12,7 +12,7 @@ char *suffixes[] = { ".c", ".i", ".s", ".o", ".out", 0 };
 char inputs[256] = "";
 char *cpp[] = { "/usr/bin/cpp", "-U__GNUC__", /*"-U__STDC__",*/ "$1", "$2", "$3", 0 };
 char *include[] = {"-I/usr/include", 0 };
-char *com[] = {LCCDIR "rcc", "-target=x86/linux", "$1", "$2", "$3", 0 };
+char *com[] = {LCCDIR "rcc", "-target=CESC16", "$1", "$2", "$3", 0 };
 char *as[] = { "/usr/bin/as", "-o", "$3", "$1", "$2", 0 }; // Todo: maybe customasm could be added here?
 char *ld[] = {	// Todo: remove
 	/*  0 */ "/usr/bin/ld", "-m", "elf_i386", "-dynamic-linker",

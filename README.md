@@ -4,7 +4,7 @@
 
 ## Building the compiler
 1. Choose the destination directory for the binaries, and add it to the your console's rc file (`.bashrc` or equivalent):
-    - Add the following line to your file: `export LCCDIR=~/lcc`.
+    - Add the following line to your file: `export LCCDIR=~/lcc`. Then restart the terminal.
     - I recommend `~/lcc`, but other directories can also be used, as long as they don't require root permissions.
 2. Create the destination directory: `mkdir $LCCDIR`.
 3. Make sure that all `.md` files use LF line termination instead of CLRF. Git will sometimes convert all line endings to CLRF automatically.

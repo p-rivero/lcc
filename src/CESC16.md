@@ -355,15 +355,15 @@ con: CNSTI8  "%a"
 con: CNSTU8  "%a"
 con: CNSTP8  "%a"
 stmt: reg  ""
-acon: ADDRGP4  "(%a)"
-acon: con     "(%0)"
-base: ADDRGP4          "(%a)"
-base: reg              "[%0]"
-base: ADDI4(reg,acon)  "%1[%0]"
-base: ADDP4(reg,acon)  "%1[%0]"
-base: ADDU4(reg,acon)  "%1[%0]"
-base: ADDRFP4  "(%a)[ebp]"
-base: ADDRLP4  "(%a)[ebp]"
+acon: ADDRGP4  "%a"
+acon: con     "%0"
+base: ADDRGP4          "%a"
+base: reg              "%0"
+base: ADDI4(reg,acon)  "%0+%1"
+base: ADDP4(reg,acon)  "%0+%1"
+base: ADDU4(reg,acon)  "%0+%1"
+base: ADDRFP4  "bp+%a"
+base: ADDRLP4  "bp+%a"
 index: reg "%0"
 index: LSHI4(reg,con1)  "%0*2"
 index: LSHI4(reg,con2)  "%0*4"
@@ -379,17 +379,17 @@ index: LSHU4(reg,con1)  "%0*2"
 index: LSHU4(reg,con2)  "%0*4"
 index: LSHU4(reg,con3)  "%0*8"
 addr: base              "%0"
-addr: ADDI4(index,base)  "%1[%0]"
-addr: ADDP4(index,base)  "%1[%0]"
-addr: ADDU4(index,base)  "%1[%0]"
-addr: index  "[%0]"
-mem: INDIRI1(addr)  "byte ptr %0"
-mem: INDIRI2(addr)  "word ptr %0"
-mem: INDIRI4(addr)  "dword ptr %0"
-mem: INDIRU1(addr)  "byte ptr %0"
-mem: INDIRU2(addr)  "word ptr %0"
-mem: INDIRU4(addr)  "dword ptr %0"
-mem: INDIRP4(addr)  "dword ptr %0"
+addr: ADDI4(index,base)  "%0+%1"
+addr: ADDP4(index,base)  "%0+%1"
+addr: ADDU4(index,base)  "%0+%1"
+addr: index  "%0"
+mem: INDIRI1(addr)  "[%0]"
+mem: INDIRI2(addr)  "[%0]"
+mem: INDIRI4(addr)  "[%0]"
+mem: INDIRU1(addr)  "[%0]"
+mem: INDIRU2(addr)  "[%0]"
+mem: INDIRU4(addr)  "[%0]"
+mem: INDIRP4(addr)  "[%0]"
 rc:   reg  "%0"
 rc:   con  "%0"
 
@@ -403,8 +403,10 @@ mrc1: rc   "%0"
 
 mrc3: mem  "%0"  3
 mrc3: rc   "%0"
-reg: addr         "lea %c,%0\n"  1
-reg: mrc0         "mov %c,%0\n"  1
+reg: acon         "\tlea %c, %0\n"  2
+reg: ADDRFP4      "\tadd r%c, bp, %a\n"  3
+reg: ADDRLP4      "\tadd r%c, bp, %a\n"  3
+reg: mrc0         "\tmov %c, %0\n"  1
 reg: LOADI1(reg)  "# move\n"  1
 reg: LOADI2(reg)  "# move\n"  1
 reg: LOADI4(reg)  "# move\n"  move(a)
@@ -412,46 +414,46 @@ reg: LOADU1(reg)  "# move\n"  1
 reg: LOADU2(reg)  "# move\n"  1
 reg: LOADU4(reg)  "# move\n"  move(a)
 reg: LOADP4(reg)  "# move\n"  move(a)
-reg: ADDI4(reg,mrc1)  "?mov %c,%0\nadd %c,%1\n"  1
-reg: ADDP4(reg,mrc1)  "?mov %c,%0\nadd %c,%1\n"  1
-reg: ADDU4(reg,mrc1)  "?mov %c,%0\nadd %c,%1\n"  1
-reg: SUBI4(reg,mrc1)  "?mov %c,%0\nsub %c,%1\n"  1
-reg: SUBP4(reg,mrc1)  "?mov %c,%0\nsub %c,%1\n"  1
-reg: SUBU4(reg,mrc1)  "?mov %c,%0\nsub %c,%1\n"  1
-reg: BANDI4(reg,mrc1)  "?mov %c,%0\nand %c,%1\n"  1
-reg: BORI4(reg,mrc1)   "?mov %c,%0\nor %c,%1\n"   1
-reg: BXORI4(reg,mrc1)  "?mov %c,%0\nxor %c,%1\n"  1
-reg: BANDU4(reg,mrc1)  "?mov %c,%0\nand %c,%1\n"  1
-reg: BORU4(reg,mrc1)   "?mov %c,%0\nor %c,%1\n"   1
-reg: BXORU4(reg,mrc1)  "?mov %c,%0\nxor %c,%1\n"  1
-stmt: ASGNI4(addr,ADDI4(mem,con1))  "inc %1\n"  memop(a)
-stmt: ASGNI4(addr,ADDU4(mem,con1))  "inc %1\n"  memop(a)
-stmt: ASGNP4(addr,ADDP4(mem,con1))  "inc %1\n"  memop(a)
-stmt: ASGNI4(addr,SUBI4(mem,con1))  "dec %1\n"  memop(a)
-stmt: ASGNI4(addr,SUBU4(mem,con1))  "dec %1\n"  memop(a)
-stmt: ASGNP4(addr,SUBP4(mem,con1))  "dec %1\n"  memop(a)
-stmt: ASGNI4(addr,ADDI4(mem,rc))   "add %1,%2\n"  memop(a)
-stmt: ASGNI4(addr,SUBI4(mem,rc))   "sub %1,%2\n"  memop(a)
-stmt: ASGNU4(addr,ADDU4(mem,rc))   "add %1,%2\n"  memop(a)
-stmt: ASGNU4(addr,SUBU4(mem,rc))   "sub %1,%2\n"  memop(a)
+reg: ADDI4(reg,mrc1)  "\tadd %c, %0, %1\n"  1
+reg: ADDP4(reg,mrc1)  "\tadd %c, %0, %1\n"  1
+reg: ADDU4(reg,mrc1)  "\tadd %c, %0, %1\n"  1
+reg: SUBI4(reg,mrc1)  "\tsub %c, %0, %1\n"  1
+reg: SUBP4(reg,mrc1)  "\tsub %c, %0, %1\n"  1
+reg: SUBU4(reg,mrc1)  "\tsub %c, %0, %1\n"  1
+reg: BANDI4(reg,mrc1) "\tand %c, %0, %1\n"  1
+reg: BORI4(reg,mrc1)  "\tor %c, %0, %1\n"   1
+reg: BXORI4(reg,mrc1) "\txor %c, %0, %1\n"  1
+reg: BANDU4(reg,mrc1) "\tand %c, %0, %1\n"  1
+reg: BORU4(reg,mrc1)  "\tor %c, %0, %1\n"   1
+reg: BXORU4(reg,mrc1) "\txor %c, %0, %1\n"  1
+stmt: ASGNI4(addr,ADDI4(mem,con1))  "\tinc %1\n"  memop(a)
+stmt: ASGNI4(addr,ADDU4(mem,con1))  "\tinc %1\n"  memop(a)
+stmt: ASGNP4(addr,ADDP4(mem,con1))  "\tinc %1\n"  memop(a)
+stmt: ASGNI4(addr,SUBI4(mem,con1))  "\tdec %1\n"  memop(a)
+stmt: ASGNI4(addr,SUBU4(mem,con1))  "\tdec %1\n"  memop(a)
+stmt: ASGNP4(addr,SUBP4(mem,con1))  "\tdec %1\n"  memop(a)
+stmt: ASGNI4(addr,ADDI4(mem,rc))    "\tadd %1, %2\n"  memop(a)
+stmt: ASGNI4(addr,SUBI4(mem,rc))    "\tsub %1, %2\n"  memop(a)
+stmt: ASGNU4(addr,ADDU4(mem,rc))    "\tadd %1, %2\n"  memop(a)
+stmt: ASGNU4(addr,SUBU4(mem,rc))    "\tsub %1, %2\n"  memop(a)
 
-stmt: ASGNI4(addr,BANDI4(mem,rc))  "and %1,%2\n"  memop(a)
-stmt: ASGNI4(addr,BORI4(mem,rc))   "or %1,%2\n"   memop(a)
-stmt: ASGNI4(addr,BXORI4(mem,rc))  "xor %1,%2\n"  memop(a)
-stmt: ASGNU4(addr,BANDU4(mem,rc))  "and %1,%2\n"  memop(a)
-stmt: ASGNU4(addr,BORU4(mem,rc))   "or %1,%2\n"   memop(a)
-stmt: ASGNU4(addr,BXORU4(mem,rc))  "xor %1,%2\n"  memop(a)
-reg: BCOMI4(reg)  "?mov %c,%0\nnot %c\n"  2
-reg: BCOMU4(reg)  "?mov %c,%0\nnot %c\n"  2
-reg: NEGI4(reg)   "?mov %c,%0\nneg %c\n"  2
+stmt: ASGNI4(addr,BANDI4(mem,rc))  "\tand %1, %2\n"  memop(a)
+stmt: ASGNI4(addr,BORI4(mem,rc))   "\tor %1, %2\n"   memop(a)
+stmt: ASGNI4(addr,BXORI4(mem,rc))  "\txor %1, %2\n"  memop(a)
+stmt: ASGNU4(addr,BANDU4(mem,rc))  "\tand %1, %2\n"  memop(a)
+stmt: ASGNU4(addr,BORU4(mem,rc))   "\tor %1, %2\n"   memop(a)
+stmt: ASGNU4(addr,BXORU4(mem,rc))  "\txor %1, %2\n"  memop(a)
+reg: BCOMI4(reg)  "\tnot %c, %0\n"  2
+reg: BCOMU4(reg)  "\tnot %c, %0\n"  2
+reg: NEGI4(reg)   "\tsub %c, zero, %0\n"  2
 
 stmt: ASGNI4(addr,BCOMI4(mem))  "not %1\n"  memop(a)
 stmt: ASGNU4(addr,BCOMU4(mem))  "not %1\n"  memop(a)
 stmt: ASGNI4(addr,NEGI4(mem))   "neg %1\n"  memop(a)
-reg: LSHI4(reg,con5)  "?mov %c,%0\nsal %c,%1\n"  2
-reg: LSHU4(reg,con5)  "?mov %c,%0\nshl %c,%1\n"  2
-reg: RSHI4(reg,con5)  "?mov %c,%0\nsar %c,%1\n"  2
-reg: RSHU4(reg,con5)  "?mov %c,%0\nshr %c,%1\n"  2
+reg: LSHI4(reg,con5)  "\tsll %c, %0, %1\n"  3
+reg: LSHU4(reg,con5)  "\tsll %c, %0, %1\n"  2
+reg: RSHI4(reg,con5)  "\tsra %c, %0, %1\n"  2
+reg: RSHU4(reg,con5)  "\tsrl %c, %0, %1\n"  2
 
 stmt: ASGNI4(addr,LSHI4(mem,con5))  "sal %1,%2\n"  memop(a)
 stmt: ASGNI4(addr,LSHU4(mem,con5))  "shl %1,%2\n"  memop(a)
@@ -460,10 +462,10 @@ stmt: ASGNI4(addr,RSHU4(mem,con5))  "shr %1,%2\n"  memop(a)
 
 con5: CNSTI4  "%a"  range(a, 0, 31)
 
-reg: LSHI4(reg,reg)  "?mov %c,%0\nmov ecx,%1\nsal %c,cl\n"  3
-reg: LSHU4(reg,reg)  "?mov %c,%0\nmov ecx,%1\nshl %c,cl\n"  2
-reg: RSHI4(reg,reg)  "?mov %c,%0\nmov ecx,%1\nsar %c,cl\n"  2
-reg: RSHU4(reg,reg)  "?mov %c,%0\nmov ecx,%1\nshr %c,cl\n"  2
+reg: LSHI4(reg,reg)   "\tsll %c, %0, %1\n"  3
+reg: LSHU4(reg,reg)   "\tsll %c, %0, %1\n"  2
+reg: RSHI4(reg,reg)   "\tsra %c, %0, %1\n"  2
+reg: RSHU4(reg,reg)   "\tsrl %c, %0, %1\n"  2
 reg: MULI4(reg,mrc3)  "?mov %c,%0\nimul %c,%1\n"  14
 reg: MULI4(con,mr)    "imul %c,%1,%0\n"  13
 reg: MULU4(reg,mr)  "mul %1\n"  13
@@ -471,12 +473,12 @@ reg: DIVU4(reg,reg)  "xor edx,edx\ndiv %1\n"
 reg: MODU4(reg,reg)  "xor edx,edx\ndiv %1\n"
 reg: DIVI4(reg,reg)  "cdq\nidiv %1\n"
 reg: MODI4(reg,reg)  "cdq\nidiv %1\n"
-reg: CVPU4(reg)  "mov %c,%0\n"  move(a)
-reg: CVUP4(reg)  "mov %c,%0\n"  move(a)
-reg: CVII4(INDIRI1(addr))  "movsx %c,byte ptr %0\n"  3
-reg: CVII4(INDIRI2(addr))  "movsx %c,word ptr %0\n"  3
-reg: CVUU4(INDIRU1(addr))  "movzx %c,byte ptr %0\n"  3
-reg: CVUU4(INDIRU2(addr))  "movzx %c,word ptr %0\n"  3
+reg: CVPU4(reg)      "\tmov %c,%0\n"  move(a)
+reg: CVUP4(reg)      "\tmov %c,%0\n"  move(a)
+reg: CVII4(INDIRI1(addr))  "\tmovsx %c, [%0]\n"  3
+reg: CVII4(INDIRI2(addr))  "\tmovsx %c, [%0]\n"  3
+reg: CVUU4(INDIRU1(addr))  "\tmovzx %c, [%0]\n"  3
+reg: CVUU4(INDIRU2(addr))  "\tmovzx %c, [%0]\n"  3
 reg: CVII4(reg)  "# extend\n"  3
 reg: CVIU4(reg)  "# extend\n"  3
 reg: CVUI4(reg)  "# extend\n"  3
@@ -486,27 +488,27 @@ reg: CVII1(reg)  "# truncate\n"  1
 reg: CVII2(reg)  "# truncate\n"  1
 reg: CVUU1(reg)  "# truncate\n"  1
 reg: CVUU2(reg)  "# truncate\n"  1
-stmt: ASGNI1(addr,rc)  "mov byte ptr %0,%1\n"   1
-stmt: ASGNI2(addr,rc)  "mov word ptr %0,%1\n"   1
-stmt: ASGNI4(addr,rc)  "mov dword ptr %0,%1\n"  1
-stmt: ASGNU1(addr,rc)  "mov byte ptr %0,%1\n"   1
-stmt: ASGNU2(addr,rc)  "mov word ptr %0,%1\n"   1
-stmt: ASGNU4(addr,rc)  "mov dword ptr %0,%1\n"  1
-stmt: ASGNP4(addr,rc)  "mov dword ptr %0,%1\n"  1
-stmt: ARGI4(mrc3)  "push %0\n"  1
-stmt: ARGU4(mrc3)  "push %0\n"  1
-stmt: ARGP4(mrc3)  "push %0\n"  1
-stmt: ASGNB(reg,INDIRB(reg))  "mov ecx,%a\nrep movsb\n"
+stmt: ASGNI1(addr,rc)  "\tmov [%0], %1\n"   1
+stmt: ASGNI2(addr,rc)  "\tmov [%0], %1\n"   1
+stmt: ASGNI4(addr,rc)  "\tmov [%0], %1\n"  1
+stmt: ASGNU1(addr,rc)  "\tmov [%0], %1\n"   1
+stmt: ASGNU2(addr,rc)  "\tmov [%0], %1\n"   1
+stmt: ASGNU4(addr,rc)  "\tmov [%0], %1\n"  1
+stmt: ASGNP4(addr,rc)  "\tmov [%0], %1\n"  1
+stmt: ARGI4(mrc3)  "\tpush %0\n"  1
+stmt: ARGU4(mrc3)  "\tpush %0\n"  1
+stmt: ARGP4(mrc3)  "\tpush %0\n"  1
+stmt: ASGNB(reg,INDIRB(reg))  "mov ecx, %a\nrep movsb\n"
 stmt: ARGB(INDIRB(reg))  "# ARGB\n"
-memf: INDIRF8(addr)         "qword ptr %0"
-memf: INDIRF4(addr)         "dword ptr %0"
-memf: CVFF8(INDIRF4(addr))  "dword ptr %0"
+memf: INDIRF8(addr)         "[%0]"
+memf: INDIRF4(addr)         "[%0]"
+memf: CVFF8(INDIRF4(addr))  "[%0]"
 reg: memf  "fld %0\n"  3
-stmt: ASGNF8(addr,reg)         "fstp qword ptr %0\n"  7
-stmt: ASGNF4(addr,reg)         "fstp dword ptr %0\n"  7
-stmt: ASGNF4(addr,CVFF4(reg))  "fstp dword ptr %0\n"  7
-stmt: ARGF8(reg)  "sub esp,8\nfstp qword ptr [esp]\n"
-stmt: ARGF4(reg)  "sub esp,4\nfstp dword ptr [esp]\n"
+stmt: ASGNF8(addr,reg)         "fstp [%0]\n"  7
+stmt: ASGNF4(addr,reg)         "fstp [%0]\n"  7
+stmt: ASGNF4(addr,CVFF4(reg))  "fstp [%0]\n"  7
+stmt: ARGF8(reg)  "sub sp, 8\nfstp [sp]\n"
+stmt: ARGF4(reg)  "sub sp, 4\nfstp [sp]\n"
 reg: NEGF8(reg)  "fchs\n"
 reg: NEGF4(reg)  "fchs\n"
 flt: memf  " %0"
@@ -520,66 +522,66 @@ reg: MULF4(reg,flt)  "fmul%1\n"
 reg: SUBF8(reg,flt)  "fsub%1\n"
 reg: SUBF4(reg,flt)  "fsub%1\n"
 reg: CVFF8(reg)  "# CVFF8\n"
-reg: CVFF4(reg)  "sub esp,4\nfstp dword ptr 0[esp]\nfld dword ptr 0[esp]\nadd esp,4\n"  12
+reg: CVFF4(reg)  "sub sp, 4\nfstp [sp]\nfld [sp]\nadd sp, 4\n"  12
 
 reg: CVFI4(reg)  "call __ftol\n" 31
-reg: CVIF8(INDIRI4(addr))  "fild dword ptr %0\n"  10
-reg: CVIF4(reg)  "push %0\nfild dword ptr 0[esp]\nadd esp,4\n"  12
+reg: CVIF8(INDIRI4(addr))  "fild [%0]\n"  10
+reg: CVIF4(reg)  "push %0\nfild [sp]\nadd sp, 4\n"  12
 
-reg: CVIF8(reg)  "push %0\nfild dword ptr 0[esp]\nadd esp,4\n"  12
+reg: CVIF8(reg)  "push %0\nfild [sp]\nadd sp, 4\n"  12
 
 addrj: ADDRGP4  "%a"
 addrj: reg      "%0"  2
 addrj: mem      "%0"  2
 
-stmt:  JUMPV(addrj)  "jmp %0\n"  3
-stmt:  LABELV        "%a:\n"
-stmt: EQI4(mem,rc)  "cmp %0,%1\nje %a\n"   5
-stmt: GEI4(mem,rc)  "cmp %0,%1\njge %a\n"  5
-stmt: GTI4(mem,rc)  "cmp %0,%1\njg %a\n"   5
-stmt: LEI4(mem,rc)  "cmp %0,%1\njle %a\n"  5
-stmt: LTI4(mem,rc)  "cmp %0,%1\njl %a\n"   5
-stmt: NEI4(mem,rc)  "cmp %0,%1\njne %a\n"  5
-stmt: GEU4(mem,rc)  "cmp %0,%1\njae %a\n"  5
-stmt: GTU4(mem,rc)  "cmp %0,%1\nja  %a\n"  5
-stmt: LEU4(mem,rc)  "cmp %0,%1\njbe %a\n"  5
-stmt: LTU4(mem,rc)  "cmp %0,%1\njb  %a\n"  5
-stmt: EQI4(reg,mrc1)  "cmp %0,%1\nje %a\n"   4
-stmt: GEI4(reg,mrc1)  "cmp %0,%1\njge %a\n"  4
-stmt: GTI4(reg,mrc1)  "cmp %0,%1\njg %a\n"   4
-stmt: LEI4(reg,mrc1)  "cmp %0,%1\njle %a\n"  4
-stmt: LTI4(reg,mrc1)  "cmp %0,%1\njl %a\n"   4
-stmt: NEI4(reg,mrc1)  "cmp %0,%1\njne %a\n"  4
+stmt: LABELV          "%a:\n"
+stmt: JUMPV(addrj)    "\tjmp %0\n"  3
+stmt: EQI4(mem,rc)    "\tcmp %0, %1\n\tje %a\n"   5
+stmt: GEI4(mem,rc)    "\tcmp %0, %1\n\tjge %a\n"  5
+stmt: GTI4(mem,rc)    "\tcmp %0, %1\n\tjg %a\n"   5
+stmt: LEI4(mem,rc)    "\tcmp %0, %1\n\tjle %a\n"  5
+stmt: LTI4(mem,rc)    "\tcmp %0, %1\n\tjl %a\n"   5
+stmt: NEI4(mem,rc)    "\tcmp %0, %1\n\tjne %a\n"  5
+stmt: GEU4(mem,rc)    "\tcmp %0, %1\n\tjae %a\n"  5
+stmt: GTU4(mem,rc)    "\tcmp %0, %1\n\tja  %a\n"  5
+stmt: LEU4(mem,rc)    "\tcmp %0, %1\n\tjbe %a\n"  5
+stmt: LTU4(mem,rc)    "\tcmp %0, %1\n\tjb  %a\n"  5
+stmt: EQI4(reg,mrc1)  "\tcmp %0, %1\n\tje %a\n"   4
+stmt: GEI4(reg,mrc1)  "\tcmp %0, %1\n\tjge %a\n"  4
+stmt: GTI4(reg,mrc1)  "\tcmp %0, %1\n\tjg %a\n"   4
+stmt: LEI4(reg,mrc1)  "\tcmp %0, %1\n\tjle %a\n"  4
+stmt: LTI4(reg,mrc1)  "\tcmp %0, %1\n\tjl %a\n"   4
+stmt: NEI4(reg,mrc1)  "\tcmp %0, %1\n\tjne %a\n"  4
 
-stmt: EQU4(reg,mrc1)  "cmp %0,%1\nje %a\n"   4
-stmt: GEU4(reg,mrc1)  "cmp %0,%1\njae %a\n"  4
-stmt: GTU4(reg,mrc1)  "cmp %0,%1\nja %a\n"   4
-stmt: LEU4(reg,mrc1)  "cmp %0,%1\njbe %a\n"  4
-stmt: LTU4(reg,mrc1)  "cmp %0,%1\njb %a\n"   4
-stmt: NEU4(reg,mrc1)  "cmp %0,%1\njne %a\n"  4
+stmt: EQU4(reg,mrc1)  "\tcmp %0, %1\n\tje %a\n"   4
+stmt: GEU4(reg,mrc1)  "\tcmp %0, %1\n\tjae %a\n"  4
+stmt: GTU4(reg,mrc1)  "\tcmp %0, %1\n\tja %a\n"   4
+stmt: LEU4(reg,mrc1)  "\tcmp %0, %1\n\tjbe %a\n"  4
+stmt: LTU4(reg,mrc1)  "\tcmp %0, %1\n\tjb %a\n"   4
+stmt: NEU4(reg,mrc1)  "\tcmp %0, %1\n\tjne %a\n"  4
 cmpf: memf  " %0"
 cmpf: reg   "p"
-stmt: EQF8(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %b\nje %a\n%b:\n"
-stmt: GEF8(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\njbe %a\n"
-stmt: GTF8(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\njb %a\n"
-stmt: LEF8(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\njae %a\n"
-stmt: LTF8(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\nja %a\n"
-stmt: NEF8(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\njne %a\n"
+stmt: EQF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %b\nje %a\n%b:\n"
+stmt: GEF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njbe %a\n"
+stmt: GTF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njb %a\n"
+stmt: LEF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njae %a\n"
+stmt: LTF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\nja %a\n"
+stmt: NEF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njne %a\n"
 
-stmt: EQF4(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %b\nje %a\n%b:\n"
-stmt: GEF4(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\njbe %a\n\n"
-stmt: GTF4(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\njb %a\n"
-stmt: LEF4(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\njae %a\n\n"
-stmt: LTF4(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\nja %a\n"
-stmt: NEF4(cmpf,reg)  "fcomp%0\nfstsw ax\nsahf\njp %a\njne %a\n"
-reg:  CALLI4(addrj)  "call %0\nadd esp,%a\n"
-reg:  CALLU4(addrj)  "call %0\nadd esp,%a\n"
-reg:  CALLP4(addrj)  "call %0\nadd esp,%a\n"
-stmt: CALLV(addrj)   "call %0\nadd esp,%a\n"
-reg: CALLF4(addrj)  "call %0\nadd esp,%a\n"
-reg: CALLF8(addrj)  "call %0\nadd esp,%a\n"
-stmt: CALLF4(addrj)  "call %0\nadd esp,%a\nfstp\n"
-stmt: CALLF8(addrj)  "call %0\nadd esp,%a\nfstp\n"
+stmt: EQF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %b\nje %a\n%b:\n"
+stmt: GEF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njbe %a\n\n"
+stmt: GTF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njb %a\n"
+stmt: LEF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njae %a\n\n"
+stmt: LTF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\nja %a\n"
+stmt: NEF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njne %a\n"
+reg:  CALLI4(addrj)   "\tcall %0\n\tadd sp,%a\n"
+reg:  CALLU4(addrj)   "\tcall %0\n\tadd sp,%a\n"
+reg:  CALLP4(addrj)   "\tcall %0\n\tadd sp,%a\n"
+stmt: CALLV(addrj)    "\tcall %0\n\tadd sp,%a\n"
+reg:  CALLF4(addrj)   "\tcall %0\n\tadd sp,%a\n"
+reg:  CALLF8(addrj)   "\tcall %0\n\tadd sp,%a\n"
+stmt: CALLF4(addrj)   "\tcall %0\n\tadd sp,%a\nfstp\n"
+stmt: CALLF8(addrj)   "\tcall %0\n\tadd sp,%a\nfstp\n"
 
 stmt: RETI4(reg)  "# ret\n"
 stmt: RETU4(reg)  "# ret\n"
@@ -630,10 +632,6 @@ static void progbeg(int argc, char *argv[]) {
         vmask[IREG] = 0;
         tmask[FREG] = 0xff;
         vmask[FREG] = 0;
-        print(".486\n");
-        print(".model flat\n");
-        print("extrn __fltused:near\n");
-        print("extrn __ftol:near\n");
         cseg = 0;
         quo = mkreg("eax", EAX, 1, IREG);
         quo->x.regnode->mask |= 1<<EDX;
@@ -658,21 +656,15 @@ static Symbol rmap(int opk) {
         }
 }
 static void segment(int n) {
-        if (n == cseg)
-                return;
-        if (cseg == CODE || cseg == LIT)
-                print("_TEXT ends\n");
-        else if (cseg == DATA || cseg == BSS)
-                print("_DATA ends\n");
+        if (n == cseg) return;
         cseg = n;
         if (cseg == CODE || cseg == LIT)
-                print("_TEXT segment\n");
+                print("#bank program\n");
         else if (cseg == DATA || cseg == BSS)
-                print("_DATA segment\n");
+                print("#bank data\n");
 }
 static void progend(void) {
-        segment(0);
-        print("end\n");
+        
 }
 static void target(Node p) {
         assert(p);
@@ -780,7 +772,7 @@ static void emit2(Node p) {
                         print("mov %s,%s\n", dst, src);
         }
         else if (op == ARG+B)
-                print("sub esp,%d\nmov edi,esp\nmov ecx,%d\nrep movsb\n",
+                print("sub sp,%d\nmov di, sp\nmov cx,%d\nrep movsb\n",
                         roundup(p->syms[0]->u.c.v.i, 4), p->syms[0]->u.c.v.i);
 }
 
@@ -807,11 +799,11 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
         int i;
 
         print("%s:\n", f->x.name);
-        print("push ebx\n");
-        print("push esi\n");
-        print("push edi\n");
-        print("push ebp\n");
-        print("mov ebp,esp\n");
+        print("\tpush bx\n");
+        print("\tpush si\n");
+        print("\tpush di\n");
+        print("\tpush bp\n");
+        print("\tmov bp, sp\n");
         usedmask[0] = usedmask[1] = 0;
         freemask[0] = freemask[1] = ~(unsigned)0;
         offset = 16 + 4;
@@ -829,16 +821,16 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
         gencode(caller, callee);
         framesize = roundup(maxoffset, 4);
         if (framesize >= 4096)
-                print("mov eax,%d\ncall __chkstk\n", framesize);
+                print("\tmov ax, %d\ncall __chkstk\n", framesize);
         else if (framesize > 0)
-                print("sub esp,%d\n", framesize);
+                print("\tsub sp, %d\n", framesize);
         emitcode();
-        print("mov esp,ebp\n");
-        print("pop ebp\n");
-        print("pop edi\n");
-        print("pop esi\n");
-        print("pop ebx\n");
-        print("ret\n");
+        print("\tmov sp, bp\n");
+        print("\tpop bp\n");
+        print("\tpop di\n");
+        print("\tpop si\n");
+        print("\tpop bx\n");
+        print("\tret\n");
         if (framesize >= 4096) {
                 int oldseg = cseg;
                 segment(0);
@@ -873,49 +865,46 @@ static void address(Symbol q, Symbol p, long n) {
 }
 static void defconst(int suffix, int size, Value v) {
         if (suffix == I && size == 1)
-                print("db %d\n",   v.u);
+                print("#d8 %d\n",   v.u);
         else if (suffix == I && size == 2)
-                print("dw %d\n",   v.i);
+                print("#d16 %d\n",   v.i);
         else if (suffix == I && size == 4)
-                print("dd %d\n",   v.i);
+                print("#d32 %d\n",   v.i);
         else if (suffix == U && size == 1)
-                print("db 0%xH\n", (unsigned)((unsigned char)v.u));
+                print("#d8 0x%x\n", (unsigned)((unsigned char)v.u));
         else if (suffix == U && size == 2)
-                print("dw 0%xH\n", (unsigned)((unsigned short)v.u));
+                print("#d16 0x%x\n", (unsigned)((unsigned short)v.u));
         else if (suffix == U && size == 4)
-                print("dd 0%xH\n", (unsigned)v.u);
+                print("#d32 0x%x\n", (unsigned)v.u);
         else if (suffix == P && size == 4)
-                print("dd 0%xH\n", (unsigned)v.p);
+                print("#d32 0x%x\n", (unsigned long long)v.p);
         else if (suffix == F && size == 4) {
                 float f = v.d;
-                print("dd 0%xH\n", *(unsigned *)&f);
+                print("#d32 0x%x\n", *(unsigned *)&f);
         }
         else if (suffix == F && size == 8) {
                 double d = v.d;
                 unsigned *p = (unsigned *)&d;
-                print("dd 0%xH\ndd 0%xH\n", p[swap], p[!swap]);
+                print("#d32 0%xH\n#d32 0%xH\n", p[swap], p[!swap]);
         }
         else assert(0);
 }
 static void defaddress(Symbol p) {
-        print("dd %s\n", p->x.name);
+        print("#d32 %s\n", p->x.name);
 }
 static void defstring(int n, char *str) {
         char *s;
 
         for (s = str; s < str + n; s++)
-                print("db %d\n", (*s)&0377);
+                print("#d8 %d\n", (*s)&0377);
+        // Todo: Add null termination. Use customasm syntax?
 }
 static void export(Symbol p) {
-        print("public %s\n", p->x.name);
+        print("; public %s\n", p->x.name);
 }
 static void import(Symbol p) {
-        int oldseg = cseg;
-
         if (p->ref > 0) {
-                segment(0);
-                print("extrn %s:near\n", p->x.name);
-                segment(oldseg);
+                print("; extern %s\n", p->x.name);
         }
 }
 static void global(Symbol p) {

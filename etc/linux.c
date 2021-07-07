@@ -10,15 +10,11 @@ static char rcsid[] = "$Id$";
 
 char *suffixes[] = { ".c", ".i", ".s", ".o", ".out", 0 };
 char inputs[256] = "";
-char *cpp[] = { LCCDIR "gcc/cpp",
-	"-U__GNUC__", "-D_POSIX_SOURCE", "-D__STDC__=1", "-D__STRICT_ANSI__",
-	"-Dunix", "-Di386", "-Dlinux",
-	"-D__unix__", "-D__i386__", "-D__linux__", "-D__signed__=signed",
-	"$1", "$2", "$3", 0 };
-char *include[] = {"-I" LCCDIR "include", "-I" LCCDIR "gcc/include", "-I/usr/include", 0 };
+char *cpp[] = { "/usr/bin/cpp", "-U__GNUC__", /*"-U__STDC__",*/ "$1", "$2", "$3", 0 };
+char *include[] = {"-I/usr/include", 0 };
 char *com[] = {LCCDIR "rcc", "-target=x86/linux", "$1", "$2", "$3", 0 };
-char *as[] = { "/usr/bin/as", "-o", "$3", "$1", "$2", 0 };
-char *ld[] = {
+char *as[] = { "/usr/bin/as", "-o", "$3", "$1", "$2", 0 }; // Todo: maybe customasm could be added here?
+char *ld[] = {	// Todo: remove
 	/*  0 */ "/usr/bin/ld", "-m", "elf_i386", "-dynamic-linker",
 	/*  4 */ "/lib/ld-linux.so.2", "-o", "$3",
 	/*  7 */ "/usr/lib/crt1.o", "/usr/lib/crti.o",
@@ -37,8 +33,8 @@ int option(char *arg) {
   	if (strncmp(arg, "-lccdir=", 8) == 0) {
 		if (strcmp(cpp[0], LCCDIR "gcc/cpp") == 0)
 			cpp[0] = concat(&arg[8], "/gcc/cpp");
-		include[0] = concat("-I", concat(&arg[8], "/include"));
-		include[1] = concat("-I", concat(&arg[8], "/gcc/include"));
+		// include[0] = concat("-I", concat(&arg[8], "/include"));
+		// include[1] = concat("-I", concat(&arg[8], "/gcc/include"));
 		ld[9]  = concat(&arg[8], "/gcc/crtbegin.o");
 		ld[12] = concat("-L", &arg[8]);
 		ld[14] = concat("-L", concat(&arg[8], "/gcc"));

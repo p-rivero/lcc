@@ -1,1 +1,3 @@
 
+BUILDDIR=$(LCCDIR)
+HOSTFILE=etc/linux.c

@@ -403,9 +403,9 @@ mrc1: rc   "%0"
 
 mrc3: mem  "%0"  3
 mrc3: rc   "%0"
-reg: acon         "\tlea %c, %0\n"  2
-reg: ADDRFP4      "\tadd r%c, bp, %a\n"  3
-reg: ADDRLP4      "\tadd r%c, bp, %a\n"  3
+reg: acon         "\tmov %c, %0\n"  2
+reg: ADDRFP4      "\tadd %c, bp, %a\n"  3
+reg: ADDRLP4      "\tadd %c, bp, %a\n"  3
 reg: mrc0         "\tmov %c, %0\n"  1
 reg: LOADI1(reg)  "# move\n"  1
 reg: LOADI2(reg)  "# move\n"  1
@@ -447,18 +447,18 @@ reg: BCOMI4(reg)  "\tnot %c, %0\n"  2
 reg: BCOMU4(reg)  "\tnot %c, %0\n"  2
 reg: NEGI4(reg)   "\tsub %c, zero, %0\n"  2
 
-stmt: ASGNI4(addr,BCOMI4(mem))  "not %1\n"  memop(a)
-stmt: ASGNU4(addr,BCOMU4(mem))  "not %1\n"  memop(a)
-stmt: ASGNI4(addr,NEGI4(mem))   "neg %1\n"  memop(a)
+stmt: ASGNI4(addr,BCOMI4(mem))  "\tnot %1\n"  memop(a)
+stmt: ASGNU4(addr,BCOMU4(mem))  "\tnot %1\n"  memop(a)
+stmt: ASGNI4(addr,NEGI4(mem))   "\tneg %1\n"  memop(a)
 reg: LSHI4(reg,con5)  "\tsll %c, %0, %1\n"  3
 reg: LSHU4(reg,con5)  "\tsll %c, %0, %1\n"  2
 reg: RSHI4(reg,con5)  "\tsra %c, %0, %1\n"  2
 reg: RSHU4(reg,con5)  "\tsrl %c, %0, %1\n"  2
 
-stmt: ASGNI4(addr,LSHI4(mem,con5))  "sal %1,%2\n"  memop(a)
-stmt: ASGNI4(addr,LSHU4(mem,con5))  "shl %1,%2\n"  memop(a)
-stmt: ASGNI4(addr,RSHI4(mem,con5))  "sar %1,%2\n"  memop(a)
-stmt: ASGNI4(addr,RSHU4(mem,con5))  "shr %1,%2\n"  memop(a)
+stmt: ASGNI4(addr,LSHI4(mem,con5))  "\tsal %1,%2\n"  memop(a)
+stmt: ASGNI4(addr,LSHU4(mem,con5))  "\tshl %1,%2\n"  memop(a)
+stmt: ASGNI4(addr,RSHI4(mem,con5))  "\tsar %1,%2\n"  memop(a)
+stmt: ASGNI4(addr,RSHU4(mem,con5))  "\tshr %1,%2\n"  memop(a)
 
 con5: CNSTI4  "%a"  range(a, 0, 31)
 
@@ -466,13 +466,13 @@ reg: LSHI4(reg,reg)   "\tsll %c, %0, %1\n"  3
 reg: LSHU4(reg,reg)   "\tsll %c, %0, %1\n"  2
 reg: RSHI4(reg,reg)   "\tsra %c, %0, %1\n"  2
 reg: RSHU4(reg,reg)   "\tsrl %c, %0, %1\n"  2
-reg: MULI4(reg,mrc3)  "?mov %c,%0\nimul %c,%1\n"  14
-reg: MULI4(con,mr)    "imul %c,%1,%0\n"  13
-reg: MULU4(reg,mr)  "mul %1\n"  13
-reg: DIVU4(reg,reg)  "xor edx,edx\ndiv %1\n"
-reg: MODU4(reg,reg)  "xor edx,edx\ndiv %1\n"
-reg: DIVI4(reg,reg)  "cdq\nidiv %1\n"
-reg: MODI4(reg,reg)  "cdq\nidiv %1\n"
+reg: MULI4(reg,mrc3)  "\t?mov %c,%0\n\timul %c,%1\n"  14
+reg: MULI4(con,mr)    "\timul %c,%1,%0\n"  13
+reg: MULU4(reg,mr)  "\tmul %1\n"  13
+reg: DIVU4(reg,reg)  "\txor edx,edx\n\tdiv %1\n"
+reg: MODU4(reg,reg)  "\txor edx,edx\n\tdiv %1\n"
+reg: DIVI4(reg,reg)  "\tcdq\n\tidiv %1\n"
+reg: MODI4(reg,reg)  "\tcdq\n\tidiv %1\n"
 reg: CVPU4(reg)      "\tmov %c,%0\n"  move(a)
 reg: CVUP4(reg)      "\tmov %c,%0\n"  move(a)
 reg: CVII4(INDIRI1(addr))  "\tmovsx %c, [%0]\n"  3
@@ -498,37 +498,37 @@ stmt: ASGNP4(addr,rc)  "\tmov [%0], %1\n"  1
 stmt: ARGI4(mrc3)  "\tpush %0\n"  1
 stmt: ARGU4(mrc3)  "\tpush %0\n"  1
 stmt: ARGP4(mrc3)  "\tpush %0\n"  1
-stmt: ASGNB(reg,INDIRB(reg))  "mov ecx, %a\nrep movsb\n"
+stmt: ASGNB(reg,INDIRB(reg))  "\tmov ecx, %a\n\trep movsb\n"
 stmt: ARGB(INDIRB(reg))  "# ARGB\n"
 memf: INDIRF8(addr)         "[%0]"
 memf: INDIRF4(addr)         "[%0]"
 memf: CVFF8(INDIRF4(addr))  "[%0]"
 reg: memf  "fld %0\n"  3
-stmt: ASGNF8(addr,reg)         "fstp [%0]\n"  7
-stmt: ASGNF4(addr,reg)         "fstp [%0]\n"  7
-stmt: ASGNF4(addr,CVFF4(reg))  "fstp [%0]\n"  7
-stmt: ARGF8(reg)  "sub sp, 8\nfstp [sp]\n"
-stmt: ARGF4(reg)  "sub sp, 4\nfstp [sp]\n"
-reg: NEGF8(reg)  "fchs\n"
-reg: NEGF4(reg)  "fchs\n"
+stmt: ASGNF8(addr,reg)         "\tfstp [%0]\n"  7
+stmt: ASGNF4(addr,reg)         "\tfstp [%0]\n"  7
+stmt: ASGNF4(addr,CVFF4(reg))  "\tfstp [%0]\n"  7
+stmt: ARGF8(reg)  "\tsub sp, 8\n\tfstp [sp]\n"
+stmt: ARGF4(reg)  "\tsub sp, 4\n\tfstp [sp]\n"
+reg: NEGF8(reg)  "\tfchs\n"
+reg: NEGF4(reg)  "\tfchs\n"
 flt: memf  " %0"
 flt: reg   "p st(1),st"
-reg: ADDF8(reg,flt)  "fadd%1\n"
-reg: ADDF4(reg,flt)  "fadd%1\n"
-reg: DIVF8(reg,flt)  "fdiv%1\n"
-reg: DIVF4(reg,flt)  "fdiv%1\n"
-reg: MULF8(reg,flt)  "fmul%1\n"
-reg: MULF4(reg,flt)  "fmul%1\n"
-reg: SUBF8(reg,flt)  "fsub%1\n"
-reg: SUBF4(reg,flt)  "fsub%1\n"
+reg: ADDF8(reg,flt)  "\tfadd%1\n"
+reg: ADDF4(reg,flt)  "\tfadd%1\n"
+reg: DIVF8(reg,flt)  "\tfdiv%1\n"
+reg: DIVF4(reg,flt)  "\tfdiv%1\n"
+reg: MULF8(reg,flt)  "\tfmul%1\n"
+reg: MULF4(reg,flt)  "\tfmul%1\n"
+reg: SUBF8(reg,flt)  "\tfsub%1\n"
+reg: SUBF4(reg,flt)  "\tfsub%1\n"
 reg: CVFF8(reg)  "# CVFF8\n"
-reg: CVFF4(reg)  "sub sp, 4\nfstp [sp]\nfld [sp]\nadd sp, 4\n"  12
+reg: CVFF4(reg)  "\tsub sp, 4\n\tfstp [sp]\n\tfld [sp]\n\tadd sp, 4\n"  12
 
-reg: CVFI4(reg)  "call __ftol\n" 31
-reg: CVIF8(INDIRI4(addr))  "fild [%0]\n"  10
-reg: CVIF4(reg)  "push %0\nfild [sp]\nadd sp, 4\n"  12
+reg: CVFI4(reg)  "\tcall __ftol\n" 31
+reg: CVIF8(INDIRI4(addr))  "\tfild [%0]\n"  10
+reg: CVIF4(reg)  "\tpush %0\n\tfild [sp]\n\tadd sp, 4\n"  12
 
-reg: CVIF8(reg)  "push %0\nfild [sp]\nadd sp, 4\n"  12
+reg: CVIF8(reg)  "\tpush %0\n\tfild [sp]\n\tadd sp, 4\n"  12
 
 addrj: ADDRGP4  "%a"
 addrj: reg      "%0"  2
@@ -561,27 +561,27 @@ stmt: LTU4(reg,mrc1)  "\tcmp %0, %1\n\tjb %a\n"   4
 stmt: NEU4(reg,mrc1)  "\tcmp %0, %1\n\tjne %a\n"  4
 cmpf: memf  " %0"
 cmpf: reg   "p"
-stmt: EQF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %b\nje %a\n%b:\n"
-stmt: GEF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njbe %a\n"
-stmt: GTF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njb %a\n"
-stmt: LEF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njae %a\n"
-stmt: LTF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\nja %a\n"
-stmt: NEF8(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njne %a\n"
+stmt: EQF8(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %b\n\tje %a\n\t%b:\n"
+stmt: GEF8(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjbe %a\n"
+stmt: GTF8(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjb %a\n"
+stmt: LEF8(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjae %a\n"
+stmt: LTF8(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tja %a\n"
+stmt: NEF8(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjne %a\n"
 
-stmt: EQF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %b\nje %a\n%b:\n"
-stmt: GEF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njbe %a\n\n"
-stmt: GTF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njb %a\n"
-stmt: LEF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njae %a\n\n"
-stmt: LTF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\nja %a\n"
-stmt: NEF4(cmpf,reg)  "\tfcomp%0\nfstsw ax\nsahf\njp %a\njne %a\n"
-reg:  CALLI4(addrj)   "\tcall %0\n\tadd sp,%a\n"
-reg:  CALLU4(addrj)   "\tcall %0\n\tadd sp,%a\n"
-reg:  CALLP4(addrj)   "\tcall %0\n\tadd sp,%a\n"
-stmt: CALLV(addrj)    "\tcall %0\n\tadd sp,%a\n"
-reg:  CALLF4(addrj)   "\tcall %0\n\tadd sp,%a\n"
-reg:  CALLF8(addrj)   "\tcall %0\n\tadd sp,%a\n"
-stmt: CALLF4(addrj)   "\tcall %0\n\tadd sp,%a\nfstp\n"
-stmt: CALLF8(addrj)   "\tcall %0\n\tadd sp,%a\nfstp\n"
+stmt: EQF4(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %b\n\tje %a\n%b:\n"
+stmt: GEF4(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjbe %a\n\n"
+stmt: GTF4(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjb %a\n"
+stmt: LEF4(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjae %a\n\n"
+stmt: LTF4(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tja %a\n"
+stmt: NEF4(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjne %a\n"
+reg:  CALLI4(addrj)   "# call\n"
+reg:  CALLU4(addrj)   "# call\n"
+reg:  CALLP4(addrj)   "# call\n"
+stmt: CALLV(addrj)    "# call\n"
+reg:  CALLF4(addrj)   "# call\n"
+reg:  CALLF8(addrj)   "# call\n"
+stmt: CALLF4(addrj)   "\tcall %0\n\tadd sp, %a\nfstp\n"
+stmt: CALLF8(addrj)   "\tcall %0\n\tadd sp, %a\nfstp\n"
 
 stmt: RETI4(reg)  "# ret\n"
 stmt: RETU4(reg)  "# ret\n"
@@ -604,24 +604,24 @@ static void progbeg(int argc, char *argv[]) {
         swap = ((int)(u.i == 1)) != IR->little_endian;
     }
     parseflags(argc, argv);
-    intreg[EAX] = mkreg("eax", EAX, 1, IREG);
-    intreg[EDX] = mkreg("edx", EDX, 1, IREG);
-    intreg[ECX] = mkreg("ecx", ECX, 1, IREG);
-    intreg[EBX] = mkreg("ebx", EBX, 1, IREG);
-    intreg[ESI] = mkreg("esi", ESI, 1, IREG);
-    intreg[EDI] = mkreg("edi", EDI, 1, IREG);
+    intreg[EAX] = mkreg("ax", EAX, 1, IREG);
+    intreg[EDX] = mkreg("dx", EDX, 1, IREG);
+    intreg[ECX] = mkreg("cx", ECX, 1, IREG);
+    intreg[EBX] = mkreg("bx", EBX, 1, IREG);
+    intreg[ESI] = mkreg("si", ESI, 1, IREG);
+    intreg[EDI] = mkreg("di", EDI, 1, IREG);
 
-    shortreg[EAX] = mkreg("ax", EAX, 1, IREG);
-    shortreg[ECX] = mkreg("cx", ECX, 1, IREG);
-    shortreg[EDX] = mkreg("dx", EDX, 1, IREG);
-    shortreg[EBX] = mkreg("bx", EBX, 1, IREG);
-    shortreg[ESI] = mkreg("si", ESI, 1, IREG);
-    shortreg[EDI] = mkreg("di", EDI, 1, IREG);
+    shortreg[EAX] = mkreg("!!a_16", EAX, 1, IREG);
+    shortreg[ECX] = mkreg("!!c_16", ECX, 1, IREG);
+    shortreg[EDX] = mkreg("!!d_16", EDX, 1, IREG);
+    shortreg[EBX] = mkreg("!!b_16", EBX, 1, IREG);
+    shortreg[ESI] = mkreg("!!s_16", ESI, 1, IREG);
+    shortreg[EDI] = mkreg("!!d_16", EDI, 1, IREG);
 
-    charreg[EAX]  = mkreg("al", EAX, 1, IREG);
-    charreg[ECX]  = mkreg("cl", ECX, 1, IREG);
-    charreg[EDX]  = mkreg("dl", EDX, 1, IREG);
-    charreg[EBX]  = mkreg("bl", EBX, 1, IREG);
+    charreg[EAX]  = mkreg("!!al_8", EAX, 1, IREG);
+    charreg[ECX]  = mkreg("!!cl_8", ECX, 1, IREG);
+    charreg[EDX]  = mkreg("!!dl_8", EDX, 1, IREG);
+    charreg[EBX]  = mkreg("!!bl_8", EBX, 1, IREG);
     for (i = 0; i < 8; i++)
         fltreg[i] = mkreg("%d", i, 0, FREG);
     charregw = mkwildcard(charreg);
@@ -667,9 +667,9 @@ static void segment(int n) {
     if (n == cseg) return;
     cseg = n;
     if (cseg == CODE || cseg == LIT)
-        print("#bank program\n");
+        print("\n#bank program\n");
     else if (cseg == DATA || cseg == BSS)
-        print("#bank data\n");
+        print("\n#bank data\n");
 }
 
 
@@ -764,38 +764,44 @@ static void emit2(Node p) {
     int op = specific(p->op);
 
     if (op == CVI+I && opsize(p->op) == 4 && opsize(p->x.kids[0]->op) == 1) {
-        print("movsx %s,%s\n", p->syms[RX]->x.name, preg(charreg));
+        print("\tmovsx %s,%s\n", p->syms[RX]->x.name, preg(charreg));
     }
     else if (op == CVI+U && opsize(p->op) == 4 && opsize(p->x.kids[0]->op) == 1) {
-        print("movsx %s,%s\n", p->syms[RX]->x.name, preg(charreg));
+        print("\tmovsx %s,%s\n", p->syms[RX]->x.name, preg(charreg));
     }
     else if (op == CVI+I && opsize(p->op) == 4 && opsize(p->x.kids[0]->op) == 2) {
-        print("movsx %s,%s\n", p->syms[RX]->x.name, preg(shortreg));
+        print("\tmovsx %s,%s\n", p->syms[RX]->x.name, preg(shortreg));
     }
     else if (op == CVI+U && opsize(p->op) == 4 && opsize(p->x.kids[0]->op) == 2) {
-        print("movsx %s,%s\n", p->syms[RX]->x.name, preg(shortreg));
+        print("\tmovsx %s,%s\n", p->syms[RX]->x.name, preg(shortreg));
     }
     else if (op == CVU+I && opsize(p->op) == 4 && opsize(p->x.kids[0]->op) == 1) {
-        print("movzx %s,%s\n", p->syms[RX]->x.name, preg(charreg));
+        print("\tmovzx %s,%s\n", p->syms[RX]->x.name, preg(charreg));
     }
     else if (op == CVU+U && opsize(p->op) == 4 && opsize(p->x.kids[0]->op) == 1) {
-        print("movzx %s,%s\n", p->syms[RX]->x.name, preg(charreg));
+        print("\tmovzx %s,%s\n", p->syms[RX]->x.name, preg(charreg));
     }
     else if (op == CVU+I && opsize(p->op) == 4 && opsize(p->x.kids[0]->op) == 2) {
-        print("movzx %s,%s\n", p->syms[RX]->x.name, preg(shortreg));
+        print("\tmovzx %s,%s\n", p->syms[RX]->x.name, preg(shortreg));
     }
     else if (op == CVU+U && opsize(p->op) == 4 && opsize(p->x.kids[0]->op) == 2) {
-        print("movzx %s,%s\n", p->syms[RX]->x.name, preg(shortreg));
+        print("\tmovzx %s,%s\n", p->syms[RX]->x.name, preg(shortreg));
     }
     else if (generic(op) == CVI || generic(op) == CVU || generic(op) == LOAD) {
         char *dst = intreg[getregnum(p)]->x.name;
         char *src = preg(intreg);
         assert(opsize(p->op) <= opsize(p->x.kids[0]->op));
         if (dst != src)
-            print("mov %s, %s\n", dst, src);
+            print("\tmov %s, %s\n", dst, src);
     }
     else if (op == ARG+B) {
-        print("sub sp,%d\nmov di, sp\nmov cx,%d\nrep movsb\n", roundup(p->syms[0]->u.c.v.i, 4), p->syms[0]->u.c.v.i);
+        print("\tsub sp,%d\n\tmov di, sp\n\tmov cx,%d\n\trep movsb\n", roundup(p->syms[0]->u.c.v.i, 4), p->syms[0]->u.c.v.i);
+    }
+    else if (op == CALL+I || op == CALL+U  || op == CALL+P || op == CALL+V) {
+        print("\tcall %s\n", p->kids[0]->syms[0]->x.name);
+        char *arg_sz = p->syms[0]->x.name;
+        if (strcmp(arg_sz, "0"))   // arg_sz != "0"
+            print("\tadd sp, %s\n", arg_sz);
     }
 }
 
@@ -825,7 +831,7 @@ static void local(Symbol p) {
 static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     int i;
 
-    print("%s:\n", f->x.name);
+    print("\n%s:\n", f->x.name);
     print("\tpush bx\n");
     print("\tpush si\n");
     print("\tpush di\n");
@@ -834,6 +840,7 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     usedmask[0] = usedmask[1] = 0;
     freemask[0] = freemask[1] = ~(unsigned)0;
     offset = 16 + 4;
+    
     for (i = 0; callee[i]; i++) {
         Symbol p = callee[i];
         Symbol q = caller[i];
@@ -843,21 +850,28 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
         p->sclass = q->sclass = AUTO;
         offset += roundup(q->type->size, 4);
     }
+    
     assert(caller[i] == 0);
     offset = maxoffset = 0;
+    
     gencode(caller, callee);
+    
     framesize = roundup(maxoffset, 4);
+    
     if (framesize >= 4096)
         print("\tmov ax, %d\ncall __chkstk\n", framesize);
     else if (framesize > 0)
         print("\tsub sp, %d\n", framesize);
+    
     emitcode();
+    
     print("\tmov sp, bp\n");
     print("\tpop bp\n");
     print("\tpop di\n");
     print("\tpop si\n");
     print("\tpop bx\n");
     print("\tret\n");
+    
     if (framesize >= 4096) {
         int oldseg = cseg;
         segment(0);
@@ -869,16 +883,16 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
 
 static void defsymbol(Symbol p) {
     if (p->scope >= LOCAL && p->sclass == STATIC) {
-        p->x.name = stringf("L%d", genlabel(1));
+        p->x.name = stringf(".L%d", genlabel(1));
     }
     else if (p->generated) {
-        p->x.name = stringf("L%s", p->name);
+        p->x.name = stringf(".L%s", p->name);
     }
     else if (p->scope == GLOBAL || p->sclass == EXTERN) {
-        p->x.name = stringf("_%s", p->name);
+        p->x.name = stringf("%s", p->name);
     }
     else if (p->scope == CONSTANTS && (isint(p->type) || isptr(p->type)) && p->name[0] == '0' && p->name[1] == 'x') {
-        p->x.name = stringf("0%sH", &p->name[2]);
+        p->x.name = stringf("0x%s", &p->name[2]);
     }
     else {
         p->x.name = p->name;
@@ -941,7 +955,7 @@ static void defstring(int n, char *str) {
 
 
 static void export(Symbol p) {
-    print("; public %s\n", p->x.name);
+    //print("public %s\n", p->x.name);
 }
 
 
@@ -953,13 +967,13 @@ static void import(Symbol p) {
 
 
 static void global(Symbol p) {
-    print("align %d\n", p->type->align > 4 ? 4 : p->type->align);
-    print("%s label byte\n", p->x.name);
+    print("\n#align %d\n", p->type->align*8);
+    print("%s:\n", p->x.name);
 }
 
 
 static void space(int n) {
-    print("db %d dup (0)\n", n);
+    print("#res %d\n", n);
 }
 
 

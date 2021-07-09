@@ -1,11 +1,11 @@
 %{
-enum { R_ZERO=0, R_SP=1, R_T0=2, R_T1=3, R_T2=4, R_T3=5, R_V0=6, R_A0=7, R_A1=8, R_A2=9, R_A3=10, R_S0=11, R_S1=12, R_S2=13, R_S3=14, R_S4=15};
-static char *regnames[] = {"zero", "sp", "t0", "t1", "t2", "t3", "v0", "a0", "a1", "a2", "a3", "s0", "s1", "s2", "s3", "s4"};
+enum { R_ZERO=0, R_SP=1, R_BP=2, R_T0=3, R_T1=4, R_T2=5, R_T3=6, R_A0=7, R_A1=8, R_A2=9, R_A3=10, R_S0=11, R_S1=12, R_S2=13, R_S3=14, R_S4=15};
+static char *regnames[] = {"zero", "sp", "bp", "t0", "t1", "t2", "t3", "a0", "a1", "a2", "a3", "s0", "s1", "s2", "s3", "s4"};
 
 // todo: add v0 as temp reg?
 static const int INTTMP = (1<<R_T0)|(1<<R_T1)|(1<<R_T2)|(1<<R_T3);
 static const int INTVAR = (1<<R_S0)|(1<<R_S1)|(1<<R_S2)|(1<<R_S3)|(1<<R_S4);
-static const int INTRET = (1<<R_V0);
+static const int INTRET = (1<<R_A0);
 
 static const int ARGREG_AMOUNT = R_A3 - R_A0 + 1;
 
@@ -228,6 +228,7 @@ mem_b: INDIRU1(addr_b)  "[%0]" 1
 
 rc:   reg  "%0"
 rc:   con  "%0"
+rc:   acon "%0"
 
 mrc: mem  "%0"
 mrc: rc   "%0"
@@ -428,7 +429,7 @@ static void target(Node p) {
     assert(p);
     switch (specific(p->op)) {
     case MUL+I: case MUL+U: case DIV+I: case DIV+U:
-        setreg(p, intreg[R_V0]);        // Result location
+        setreg(p, intreg[R_A0]);        // Result location
         rtarget(p, 0, intreg[R_A0]);    // Where to store arg
         rtarget(p, 1, intreg[R_A1]);    // Where to store arg
         break;
@@ -457,16 +458,16 @@ static void target(Node p) {
         break;
         
     case CVF+I:
-        setreg(p, intreg[R_V0]); // Result location
+        setreg(p, intreg[R_A0]); // Result location
         break;
         
     case CALL+I: case CALL+U: case CALL+P: case CALL+V:
         rtarget(p, 0, intreg[R_T3]);
-        setreg(p, intreg[R_V0]); // Result location
+        setreg(p, intreg[R_A0]); // Result location
         break;
         
     case RET+I: case RET+U: case RET+P:
-        rtarget(p, 0, intreg[R_V0]); // Where to store ret value
+        rtarget(p, 0, intreg[R_A0]); // Where to store ret value
         break;
     }
 }
@@ -666,16 +667,36 @@ static void defconst(int suffix, int size, Value v) {
 
 
 static void defaddress(Symbol p) {
-    print("#d32 %s\n", p->x.name);
+    print("#d16 %s\n", p->x.name);
 }
 
+char buf[2];
+char *get_escape_seq(char c) {
+    switch (c) {
+    case '\a': return "\\a";
+    case '\b': return "\\b";
+    case '\e': return "\\e";
+    case '\f': return "\\f";
+    case '\n': return "\\n";
+    case '\r': return "\\r";
+    case '\t': return "\\t";
+    case '\v': return "\\v";
+    case '\0': return "\\0";
+    default:
+        buf[0] = c;
+        buf[1] = '\0';
+        return buf;
+    }
+}
 
 static void defstring(int n, char *str) {
     char *s;
-
-    for (s = str; s < str + n; s++)
-        print("#d8 %d\n", (*s)&0377);
-    // Todo: Add null termination. Use customasm syntax?
+    print("#d \"");
+    for (s = str; s < str + n; s++) 
+        print("%s", get_escape_seq(*s));
+    
+    print("\"");
+    print("\n#align 32");
 }
 
 

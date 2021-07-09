@@ -37,8 +37,6 @@ static Symbol intregw, fltregw;
 
 static int cseg;
 
-static Symbol quo, rem;
-
 // Output of ops.c (arguments: c=1 s=1 i=1 l=1 h=1 f=1 d=1 x=1 p=1)
 /* Extra operators:
     - LOADI1=1253
@@ -221,9 +219,6 @@ mem: INDIRU1(addr)  "[%0]"
 rc:   reg  "%0"
 rc:   con  "%0"
 
-mr:   reg  "%0"
-mr:   mem  "%0"
-
 mrc0: mem  "%0"
 mrc0: rc   "%0"
 mrc1: mem  "%0"  1
@@ -276,13 +271,12 @@ reg: LSHI1(reg,reg)   "\tsll %c, %0, %1\n"  3
 reg: LSHU1(reg,reg)   "\tsll %c, %0, %1\n"  2
 reg: RSHI1(reg,reg)   "\tsra %c, %0, %1\n"  2
 reg: RSHU1(reg,reg)   "\tsrl %c, %0, %1\n"  2
-reg: MULI1(reg,mrc3)  "\timul %c, %0, %1\n"  14
-reg: MULI1(con,mr)    "\timul %c, %1, %0\n"  13
-reg: MULU1(reg,mr)    "\tmul %1\n"  13
-reg: DIVU1(reg,reg)   "\txor edx,edx\n\tdiv %1\n"
-reg: MODU1(reg,reg)   "\txor edx,edx\n\tdiv %1\n"
-reg: DIVI1(reg,reg)   "\tcdq\n\tidiv %1\n"
-reg: MODI1(reg,reg)   "\tcdq\n\tidiv %1\n"
+reg: MULI1(reg,reg)   "\tcall mul\n"  13
+reg: MULU1(reg,reg)   "\tcall mul\n"  13
+reg: DIVU1(reg,reg)   "\tcall divu\n" 13
+reg: MODU1(reg,reg)   "\tcall divu\n" 13
+reg: DIVI1(reg,reg)   "\tcall div\n"  13
+reg: MODI1(reg,reg)   "\tcall div\n"  13
 reg: CVPU1(reg)       "\tmov %c, %0\n"  move(a)
 reg: CVUP1(reg)       "\tmov %c, %0\n"  move(a)
 reg: CVII1(INDIRI1(addr))  "\tmov %c, [%0]\n"  3
@@ -400,11 +394,9 @@ static void progbeg(int argc, char *argv[]) {
     vmask[IREG] = 0;
     tmask[FREG] = 0xff;
     vmask[FREG] = 0;
+    
+    // Don't start at any specific bank
     cseg = 0;
-    quo = mkreg("ax", EAX, 1, IREG);
-    quo->x.regnode->mask |= 1<<EDX;
-    rem = mkreg("dx", EDX, 1, IREG);
-    rem->x.regnode->mask |= 1<<EAX;
 }
 
 
@@ -438,40 +430,37 @@ static void progend(void) {
 static void target(Node p) {
     assert(p);
     switch (specific(p->op)) {
-    case MUL+U:
-        setreg(p, quo);
-        rtarget(p, 0, intreg[EAX]);
+    case MUL+U: case DIV+I: case DIV+U:
+        setreg(p, intreg[EAX]);     // Result location
+        rtarget(p, 0, intreg[EAX]); // Where to store arg
+        rtarget(p, 1, intreg[EBX]); // Where to store arg
         break;
-        
-    case DIV+I: case DIV+U:
-        setreg(p, quo);
-        rtarget(p, 0, quo);
-        break;
-        
+    
     case MOD+I: case MOD+U:
-        setreg(p, rem);
-        rtarget(p, 0, quo);
+        setreg(p, intreg[EBX]);     // Result location
+        rtarget(p, 0, intreg[EAX]); // Where to store arg
+        rtarget(p, 1, intreg[EBX]); // Where to store arg
         break;
         
     case ASGN+B:
-        rtarget(p, 0, intreg[EDI]);
-        rtarget(p->kids[1], 0, intreg[ESI]);
+        rtarget(p, 0, intreg[EDI]); // Where to store arg
+        rtarget(p->kids[1], 0, intreg[ESI]); // Where to store arg
         break;
         
     case ARG+B:
-        rtarget(p->kids[0], 0, intreg[ESI]);
+        rtarget(p->kids[0], 0, intreg[ESI]); // Where to store arg
         break;
         
     case CVF+I:
-        setreg(p, intreg[EAX]);
+        setreg(p, intreg[EAX]); // Result location
         break;
         
     case CALL+I: case CALL+U: case CALL+P: case CALL+V:
-        setreg(p, intreg[EAX]);
+        setreg(p, intreg[EAX]); // Result location
         break;
         
     case RET+I: case RET+U: case RET+P:
-        rtarget(p, 0, intreg[EAX]);
+        rtarget(p, 0, intreg[EAX]); // Where to store arg
         break;
     }
 }
@@ -481,32 +470,29 @@ static void clobber(Node p) {
 
     assert(p);
     nstack = ckstack(p, nstack);
-    switch (specific(p->op)) {
-    case RSH+I: case RSH+U: case LSH+I: case LSH+U:
-        if (generic(p->kids[1]->op) != CNST
-            && !(generic(p->kids[1]->op) == INDIR
-            && specific(p->kids[1]->kids[0]->op) == VREG+P
-            && p->kids[1]->syms[RX]->u.t.cse
-            && generic(p->kids[1]->syms[RX]->u.t.cse->op) == CNST)) {
-            spill(1<<ECX, 1, p);
-        }
-        break;
-        
+    switch (specific(p->op)) {        
     case ASGN+B: case ARG+B:
+        // Which regs to free
         spill(1<<ECX | 1<<ESI | 1<<EDI, IREG, p);
         break;
-        
-    case EQ+F: case LE+F: case GE+F: case LT+F: case GT+F: case NE+F:
-        spill(1<<EAX, IREG, p);
-        if (specific(p->op) == EQ+F)
-            p->syms[1] = findlabel(genlabel(1));
-        break;
-        
+            
     case CALL+F:
+        // Todo: spill INTTMP|INTRET
         spill(1<<EDX | 1<<EAX | 1<<ECX, IREG, p);
         break;
         
-    case CALL+I: case CALL+U: case CALL+P: case CALL+V:
+    case CALL+I: case CALL+U: case CALL+P:
+        // Todo: spill INTTMP
+        spill(1<<EDX | 1<<ECX, IREG, p);
+        break;
+        
+    case CALL+V:
+        // Todo: spill INTTMP|INTRET
+        spill(1<<EDX | 1<<ECX, IREG, p);
+        break;
+        
+    case MUL+I: case MUL+U: case DIV+I: case DIV+U: case MOD+I: case MOD+U:
+        // Todo: spill INTTMP
         spill(1<<EDX | 1<<ECX, IREG, p);
         break;
     }
@@ -597,7 +583,9 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     
     emitcode();
     
-    print("\tmov sp, bp\n");
+    if (framesize > 0)
+        print("\tmov sp, bp\n");
+        
     print("\tpop bp\n");
     print("\tpop di\n");
     print("\tpop si\n");

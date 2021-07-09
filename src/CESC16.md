@@ -1,5 +1,14 @@
 %{
-enum { EAX=0, ECX=1, EDX=2, EBX=3, ESI=6, EDI=7 };
+enum { R_ZERO=0, R_SP=1, R_T0=2, R_T1=3, R_T2=4, R_T3=5, R_V0=6, R_A0=7, R_A1=8, R_A2=9, R_A3=10, R_S0=11, R_S1=12, R_S2=13, R_S3=14, R_S4=15};
+static char *regnames[] = {"zero", "sp", "t0", "t1", "t2", "t3", "v0", "a0", "a1", "a2", "a3", "s0", "s1", "s2", "s3", "s4"};
+
+// todo: add v0 as temp reg?
+static const int INTTMP = (1<<R_T0)|(1<<R_T1)|(1<<R_T2)|(1<<R_T3);
+static const int INTVAR = (1<<R_S0)|(1<<R_S1)|(1<<R_S2)|(1<<R_S3)|(1<<R_S4);
+static const int INTRET = (1<<R_V0);
+
+static const int ARGREG_AMOUNT = R_A3 - R_A0 + 1;
+
 #include "c.h"
 #define NODEPTR_TYPE Node
 #define OP_LABEL(p) ((p)->op)
@@ -230,6 +239,10 @@ reg: mrc          "\tmov %c, %0\n"  2
 reg: LOADI1(reg)  "# move\n"  1
 reg: LOADU1(reg)  "# move\n"  1
 reg: LOADP1(reg)  "# move\n"  1
+reg: CNSTF1  "# reg\n"  range(a, 0, 0)
+reg: CNSTI1  "# reg\n"  range(a, 0, 0)
+reg: CNSTP1  "# reg\n"  range(a, 0, 0)
+reg: CNSTU1  "# reg\n"  range(a, 0, 0)
 
 reg: ADDI1(reg,mrc)  "\tadd %c, %0, %1\n"  3
 reg: ADDP1(reg,mrc)  "\tadd %c, %0, %1\n"  3
@@ -297,7 +310,7 @@ memf: CVFF1(INDIRF1(addr))  "[%0]"
 reg: memf  "fld %0\n"  3
 stmt: ASGNF1(addr,reg)         "\tfstp [%0]\n"  7
 stmt: ASGNF1(addr,CVFF1(reg))  "\tfstp [%0]\n"  7
-stmt: ARGF1(reg)  "\tsub sp, 1\n\tfstp [sp]\n"
+stmt: ARGF1(reg)  "\tsub sp, sp, 1\n\tfstp [sp]\n"
 reg: NEGF1(reg)  "\tfchs\n"
 flt: memf  " %0"
 flt: reg   "p st(1),st"
@@ -305,10 +318,10 @@ reg: ADDF1(reg,flt)  "\tfadd%1\n"
 reg: DIVF1(reg,flt)  "\tfdiv%1\n"
 reg: MULF1(reg,flt)  "\tfmul%1\n"
 reg: SUBF1(reg,flt)  "\tfsub%1\n"
-reg: CVFF1(reg)  "\tsub sp, 1\n\tfstp [sp]\n\tfld [sp]\n\tadd sp, 1\n"  12
+reg: CVFF1(reg)  "\tsub sp, sp, 1\n\tfstp [sp]\n\tfld [sp]\n\tadd sp, sp, 1\n"  12
 
 reg: CVFI1(reg)  "\tcall __ftol\n" 31
-reg: CVIF1(reg)  "\tpush %0\n\tfild [sp]\n\tadd sp, 1\n"  12
+reg: CVIF1(reg)  "\tpush %0\n\tfild [sp]\n\tadd sp, sp, 1\n"  12
 
 addrj: ADDRGP1  "%a"
 addrj: reg      "%0"
@@ -344,7 +357,7 @@ reg:  CALLU1(addrj)   "# call\n"
 reg:  CALLP1(addrj)   "# call\n"
 stmt: CALLV(addrj)    "# call\n"
 reg:  CALLF1(addrj)   "# call\n"
-stmt: CALLF1(addrj)   "\tcall %0\n\tadd sp, %a\nfstp\n"
+stmt: CALLF1(addrj)   "\tcall %0\n\tadd sp, sp, %a\nfstp\n"
 
 stmt: RETI1(reg)  "# ret\n"
 stmt: RETU1(reg)  "# ret\n"
@@ -352,8 +365,7 @@ stmt: RETP1(reg)  "# ret\n"
 stmt: RETF1(reg)  "# ret\n"
 %%
 
-
-static void progbeg(int argc, char *argv[]) {
+static void progbeg(int argc, char *argv[]) {    
     int i;
 
     {
@@ -366,20 +378,17 @@ static void progbeg(int argc, char *argv[]) {
         swap = ((int)(u.i == 1)) != IR->little_endian;
     }
     parseflags(argc, argv);
-    intreg[EAX] = mkreg("ax", EAX, 1, IREG);
-    intreg[EDX] = mkreg("dx", EDX, 1, IREG);
-    intreg[ECX] = mkreg("cx", ECX, 1, IREG);
-    intreg[EBX] = mkreg("bx", EBX, 1, IREG);
-    intreg[ESI] = mkreg("si", ESI, 1, IREG);
-    intreg[EDI] = mkreg("di", EDI, 1, IREG);
-
+    // Create register bank
+    for (i = 0; i < 16; i++)
+        intreg[i]  = mkreg(regnames[i], i, 1, IREG);
+    
     for (i = 0; i < 8; i++)
         fltreg[i] = mkreg("%d", i, 0, FREG);
     intregw = mkwildcard(intreg);
     fltregw = mkwildcard(fltreg);
-
-    tmask[IREG] = (1<<EDI) | (1<<ESI) | (1<<EBX) | (1<<EDX) | (1<<ECX) | (1<<EAX);
-    vmask[IREG] = 0;
+    
+    tmask[IREG] = INTTMP;
+    vmask[IREG] = INTVAR;
     tmask[FREG] = 0xff;
     vmask[FREG] = 0;
     
@@ -419,36 +428,45 @@ static void target(Node p) {
     assert(p);
     switch (specific(p->op)) {
     case MUL+I: case MUL+U: case DIV+I: case DIV+U:
-        setreg(p, intreg[EAX]);     // Result location
-        rtarget(p, 0, intreg[EAX]); // Where to store arg
-        rtarget(p, 1, intreg[EBX]); // Where to store arg
+        setreg(p, intreg[R_V0]);        // Result location
+        rtarget(p, 0, intreg[R_A0]);    // Where to store arg
+        rtarget(p, 1, intreg[R_A1]);    // Where to store arg
         break;
     
     case MOD+I: case MOD+U:
-        setreg(p, intreg[EBX]);     // Result location
-        rtarget(p, 0, intreg[EAX]); // Where to store arg
-        rtarget(p, 1, intreg[EBX]); // Where to store arg
+        setreg(p, intreg[R_A0]);     // Result location
+        rtarget(p, 0, intreg[R_A0]); // Where to store arg
+        rtarget(p, 1, intreg[R_A1]); // Where to store arg
+        break;
+        
+    case CNST+I: case CNST+U: case CNST+P:
+        // Use zero register for constants that are 0
+        if (range(p, 0, 0) == 0) {
+            setreg(p, intreg[R_ZERO]); 
+            p->x.registered = 1;
+        }
         break;
         
     case ASGN+B:
-        rtarget(p, 0, intreg[EDI]); // Where to store arg
-        rtarget(p->kids[1], 0, intreg[ESI]); // Where to store arg
+        rtarget(p, 0, intreg[R_T1]); // Where to store destination address
+        rtarget(p->kids[1], 0, intreg[R_T0]); // Where to store source address
         break;
         
     case ARG+B:
-        rtarget(p->kids[0], 0, intreg[ESI]); // Where to store arg
+        rtarget(p->kids[0], 0, intreg[R_T0]); // Where to store source address
         break;
         
     case CVF+I:
-        setreg(p, intreg[EAX]); // Result location
+        setreg(p, intreg[R_V0]); // Result location
         break;
         
     case CALL+I: case CALL+U: case CALL+P: case CALL+V:
-        setreg(p, intreg[EAX]); // Result location
+        rtarget(p, 0, intreg[R_T3]);
+        setreg(p, intreg[R_V0]); // Result location
         break;
         
     case RET+I: case RET+U: case RET+P:
-        rtarget(p, 0, intreg[EAX]); // Where to store arg
+        rtarget(p, 0, intreg[R_V0]); // Where to store ret value
         break;
     }
 }
@@ -461,27 +479,25 @@ static void clobber(Node p) {
     switch (specific(p->op)) {        
     case ASGN+B: case ARG+B:
         // Which regs to free
-        spill(1<<ECX | 1<<ESI | 1<<EDI, IREG, p);
+        // Todo: if block copy requires more regs, spill them here
+        spill((1<<R_T0)|(1<<R_T1), IREG, p);
         break;
             
     case CALL+F:
-        // Todo: spill INTTMP|INTRET
-        spill(1<<EDX | 1<<EAX | 1<<ECX, IREG, p);
+        spill(INTTMP|INTRET, IREG, p);
         break;
         
     case CALL+I: case CALL+U: case CALL+P:
-        // Todo: spill INTTMP
-        spill(1<<EDX | 1<<ECX, IREG, p);
+        spill(INTTMP, IREG, p);
         break;
         
     case CALL+V:
-        // Todo: spill INTTMP|INTRET
-        spill(1<<EDX | 1<<ECX, IREG, p);
+        spill(INTTMP|INTRET, IREG, p);
         break;
         
     case MUL+I: case MUL+U: case DIV+I: case DIV+U: case MOD+I: case MOD+U:
-        // Todo: spill INTTMP
-        spill(1<<EDX | 1<<ECX, IREG, p);
+        // Todo: spill only the arg regs?
+        spill(INTTMP, IREG, p);
         break;
     }
 }
@@ -502,24 +518,40 @@ static void emit2(Node p) {
             print("\tmov %s, %s\n", dst, src);
     }
     else if (op == ARG+B) {
-        print("\tsub sp, %d\n\tmov di, sp\n\t; Todo: copy %d bytes\n", p->syms[0]->u.c.v.i, p->syms[0]->u.c.v.i);
+        int struct_size = p->syms[0]->u.c.v.i;
+        print("\tsub sp, %d\n\tmov t1, sp\n", struct_size);
+        print("\t; Todo: copy %d words. Source at t0, destination at t1\n", struct_size);
     }
     else if (op == CALL+I || op == CALL+U  || op == CALL+P || op == CALL+V) {
         print("\tcall %s\n", p->kids[0]->syms[0]->x.name);
         char *arg_sz = p->syms[0]->x.name;
         if (strcmp(arg_sz, "0"))   // arg_sz != "0"
-            print("\tadd sp, %s\n", arg_sz);
+            print("\tadd sp, sp, %s\n", arg_sz);
     }
+    // Todo: emit ARG operators (op == ARG+I || op == ARG+U || op == ARG+P)
 }
 
+// static Symbol argreg(argno, offset, ty) int argno, offset, ty; {
+//     // Select an argument register, return null if the arg is stored in stack
+//     if (ty == F || ty == D) assert(0); // Floats not supported
+    
+//     if (offset >= ARGREG_AMOUNT) return NULL;
+//     else return ireg[R_A0 + offset];
+// }
 static void doarg(Node p) {
     assert(p && p->syms[0]);
     mkactual(1, p->syms[0]->u.c.v.i);
 }
 
-static void blkfetch(int k, int off, int reg, int tmp) {}
-static void blkstore(int k, int off, int reg, int tmp) {}
-static void blkloop(int dreg, int doff, int sreg, int soff, int size, int tmps[]) {}
+static void blkfetch(int k, int off, int reg, int tmp) {
+    print(";! blkfetch");
+}
+static void blkstore(int k, int off, int reg, int tmp) {
+    print(";! blkstore");
+}
+static void blkloop(int dreg, int doff, int sreg, int soff, int size, int tmps[]) {
+    print(";! blkloop");
+}
 
 
 static void local(Symbol p) {
@@ -536,16 +568,14 @@ static void local(Symbol p) {
 
 static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     int i;
-
+    
+    segment(CODE);
     print("\n%s:\n", f->x.name);
-    print("\tpush bx\n");
-    print("\tpush si\n");
-    print("\tpush di\n");
     print("\tpush bp\n");
     print("\tmov bp, sp\n");
     usedmask[0] = usedmask[1] = 0;
     freemask[0] = freemask[1] = ~(unsigned)0;
-    offset = 4 + 1; // Todo: change to 2
+    offset = 2; // Skip stored bp and ret value
     
     for (i = 0; callee[i]; i++) {
         Symbol p = callee[i];
@@ -562,30 +592,30 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     
     gencode(caller, callee);
     
-    framesize = maxoffset; // Don't round up
+    framesize = maxoffset; // Don't round up the frame size
+    usedmask[IREG] &= INTVAR; // Only save the safe registers
     
-    if (framesize >= 4096)
-        print("\tmov ax, %d\ncall __chkstk\n", framesize);
-    else if (framesize > 0)
-        print("\tsub sp, %d\n", framesize);
+    if (framesize > 0) print("\tsub sp, sp, %d\n", framesize);
+    
+    // Store safe regs
+    for (i = R_S0; i <= R_S4; i++) {
+        if (usedmask[IREG] & (1<<i)) {
+            print("\tpush %s\n", regnames[i]);
+        }
+    }
     
     emitcode();
     
-    if (framesize > 0)
-        print("\tmov sp, bp\n");
-        
-    print("\tpop bp\n");
-    print("\tpop di\n");
-    print("\tpop si\n");
-    print("\tpop bx\n");
-    print("\tret\n");
-    
-    if (framesize >= 4096) {
-        int oldseg = cseg;
-        segment(0);
-        print("extrn __chkstk:near\n");
-        segment(oldseg);
+    // Restore safe regs (FIFO: pop in reverse order)
+    for (i = R_S4; i >= R_S0; i--) {
+        if (usedmask[IREG] & (1<<i)) {
+            print("\tpop %s\n", regnames[i]);
+        }
     }
+    
+    if (framesize > 0) print("\tmov sp, bp\n");
+    print("\tpop bp\n");
+    print("\tret\n");
 }
 
 
@@ -688,7 +718,7 @@ Interface CESC16IR = {
     1, 1, 1,  /* long double */
     1, 1, 0,  /* T * (pointer) */
     0, 1, 0,  /* struct */
-    1,        /* little_endian */
+    1,  // little_endian
     1,  // mulops_calls     0 if the hardware implements multiply, divide, and remainder
     0,  // wants_callb      0 if the front-end is responsible for implementing functions that return structs
     0,  // wants_argb       0 if the front-end is responsible for implementing arguments that are structs

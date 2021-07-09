@@ -197,86 +197,83 @@ con: CNSTU1  "%a"
 
 stmt: reg  ""
 acon: ADDRGP1  "%a"
-acon: con     "%0"
-base: ADDRGP1          "%a"
-base: reg              "%0"
-base: ADDI1(reg,acon)  "%0+%1"
-base: ADDP1(reg,acon)  "%0+%1"
-base: ADDU1(reg,acon)  "%0+%1"
-base: ADDRFP1  "bp+%a"
-base: ADDRLP1  "bp+%a"
-index: reg "%0"
+acon: con      "%0"
+addr_b: acon           "%0"
+addr_b: reg            "%0"
+addr: addr_b           "%0"
+addr: ADDI1(reg,acon)  "%0+%1" 1
+addr: ADDP1(reg,acon)  "%0+%1" 1
+addr: ADDU1(reg,acon)  "%0+%1" 1
+addr: ADDI1(reg,reg)   "%0+%1" 1
+addr: ADDP1(reg,reg)   "%0+%1" 1
+addr: ADDU1(reg,reg)   "%0+%1" 1
+addr: ADDRFP1          "bp+%a" 1
+addr: ADDRLP1          "bp+%a" 1
 
-addr: base              "%0"
-addr: ADDI1(index,base)  "%0+%1"
-addr: ADDP1(index,base)  "%0+%1"
-addr: ADDU1(index,base)  "%0+%1"
-addr: index  "%0"
-mem: INDIRI1(addr)  "[%0]"
-mem: INDIRP1(addr)  "[%0]"
-mem: INDIRU1(addr)  "[%0]"
+mem: INDIRI1(addr)  "[%0]" 1
+mem: INDIRP1(addr)  "[%0]" 1
+mem: INDIRU1(addr)  "[%0]" 1
+mem_b: INDIRI1(addr_b)  "[%0]" 1
+mem_b: INDIRP1(addr_b)  "[%0]" 1
+mem_b: INDIRU1(addr_b)  "[%0]" 1
 
 rc:   reg  "%0"
 rc:   con  "%0"
 
-mrc0: mem  "%0"
-mrc0: rc   "%0"
-mrc1: mem  "%0"  1
-mrc1: rc   "%0"
+mrc: mem  "%0"
+mrc: rc   "%0"
 
-mrc3: mem  "%0"  3
-mrc3: rc   "%0"
 reg: acon         "\tmov %c, %0\n"  2
 reg: ADDRFP1      "\tadd %c, bp, %a\n"  3
 reg: ADDRLP1      "\tadd %c, bp, %a\n"  3
-reg: mrc0         "\tmov %c, %0\n"  1
+reg: mrc          "\tmov %c, %0\n"  2
 reg: LOADI1(reg)  "# move\n"  1
 reg: LOADU1(reg)  "# move\n"  1
 reg: LOADP1(reg)  "# move\n"  1
 
-reg: ADDI1(reg,mrc1)  "\tadd %c, %0, %1\n"  1
-reg: ADDP1(reg,mrc1)  "\tadd %c, %0, %1\n"  1
-reg: ADDU1(reg,mrc1)  "\tadd %c, %0, %1\n"  1
-reg: SUBI1(reg,mrc1)  "\tsub %c, %0, %1\n"  1
-reg: SUBP1(reg,mrc1)  "\tsub %c, %0, %1\n"  1
-reg: SUBU1(reg,mrc1)  "\tsub %c, %0, %1\n"  1
-reg: BANDI1(reg,mrc1) "\tand %c, %0, %1\n"  1
-reg: BORI1(reg,mrc1)  "\tor %c, %0, %1\n"   1
-reg: BXORI1(reg,mrc1) "\txor %c, %0, %1\n"  1
-reg: BANDU1(reg,mrc1) "\tand %c, %0, %1\n"  1
-reg: BORU1(reg,mrc1)  "\tor %c, %0, %1\n"   1
-reg: BXORU1(reg,mrc1) "\txor %c, %0, %1\n"  1
+reg: ADDI1(reg,mrc)  "\tadd %c, %0, %1\n"  3
+reg: ADDP1(reg,mrc)  "\tadd %c, %0, %1\n"  3
+reg: ADDU1(reg,mrc)  "\tadd %c, %0, %1\n"  3
+reg: SUBI1(reg,mrc)  "\tsub %c, %0, %1\n"  3
+reg: SUBP1(reg,mrc)  "\tsub %c, %0, %1\n"  3
+reg: SUBU1(reg,mrc)  "\tsub %c, %0, %1\n"  3
+reg: BANDI1(reg,mrc) "\tand %c, %0, %1\n"  3
+reg: BORI1(reg,mrc)  "\tor %c, %0, %1\n"   3
+reg: BXORI1(reg,mrc) "\txor %c, %0, %1\n"  3
+reg: BANDU1(reg,mrc) "\tand %c, %0, %1\n"  3
+reg: BORU1(reg,mrc)  "\tor %c, %0, %1\n"   3
+reg: BXORU1(reg,mrc) "\txor %c, %0, %1\n"  3
 
-stmt: ASGNI1(addr,ADDI1(mem,rc)) "\tadd %1, %2\n"  memop(a)
-stmt: ASGNI1(addr,SUBI1(mem,rc)) "\tsub %1, %2\n"  memop(a)
-stmt: ASGNU1(addr,ADDU1(mem,rc)) "\tadd %1, %2\n"  memop(a)
-stmt: ASGNU1(addr,SUBU1(mem,rc)) "\tsub %1, %2\n"  memop(a)
-stmt: ASGNI1(addr,BANDI1(mem,rc))  "\tand %1, %2\n"  memop(a)
-stmt: ASGNI1(addr,BORI1(mem,rc))   "\tor %1, %2\n"   memop(a)
-stmt: ASGNI1(addr,BXORI1(mem,rc))  "\txor %1, %2\n"  memop(a)
-stmt: ASGNU1(addr,BANDU1(mem,rc))  "\tand %1, %2\n"  memop(a)
-stmt: ASGNU1(addr,BORU1(mem,rc))   "\tor %1, %2\n"   memop(a)
-stmt: ASGNU1(addr,BXORU1(mem,rc))  "\txor %1, %2\n"  memop(a)
-reg: BCOMI1(reg)  "\tnot %c, %0\n"  2
-reg: BCOMU1(reg)  "\tnot %c, %0\n"  2
-reg: NEGI1(reg)   "\tsub %c, zero, %0\n"  2
+stmt: ASGNI1(addr,ADDI1(mem,reg))   "\tadd %1, %2\n"  memop(a)
+stmt: ASGNI1(addr,SUBI1(mem,reg))   "\tsub %1, %2\n"  memop(a)
+stmt: ASGNU1(addr,ADDU1(mem,reg))   "\tadd %1, %2\n"  memop(a)
+stmt: ASGNU1(addr,SUBU1(mem,reg))   "\tsub %1, %2\n"  memop(a)
+stmt: ASGNI1(addr,BANDI1(mem,reg))  "\tand %1, %2\n"  memop(a)
+stmt: ASGNI1(addr,BORI1(mem,reg))   "\tor %1, %2\n"   memop(a)
+stmt: ASGNI1(addr,BXORI1(mem,reg))  "\txor %1, %2\n"  memop(a)
+stmt: ASGNU1(addr,BANDU1(mem,reg))  "\tand %1, %2\n"  memop(a)
+stmt: ASGNU1(addr,BORU1(mem,reg))   "\tor %1, %2\n"   memop(a)
+stmt: ASGNU1(addr,BXORU1(mem,reg))  "\txor %1, %2\n"  memop(a)
+reg: BCOMI1(reg)  "\tnot %c, %0\n"  3
+reg: BCOMU1(reg)  "\tnot %c, %0\n"  3
+reg: NEGI1(reg)   "\tsub %c, zero, %0\n"  3
 
 con5: CNSTI1  "%a"  range(a, 0, 15)
-reg: LSHI1(reg,con5)  "\tsll %c, %0, %1\n"  3
+reg: LSHI1(reg,con5)  "\tsll %c, %0, %1\n"  2
 reg: LSHU1(reg,con5)  "\tsll %c, %0, %1\n"  2
 reg: RSHI1(reg,con5)  "\tsra %c, %0, %1\n"  2
 reg: RSHU1(reg,con5)  "\tsrl %c, %0, %1\n"  2
 
-reg: LSHI1(reg,reg)   "\tsll %c, %0, %1\n"  3
-reg: LSHU1(reg,reg)   "\tsll %c, %0, %1\n"  2
-reg: RSHI1(reg,reg)   "\tsra %c, %0, %1\n"  2
-reg: RSHU1(reg,reg)   "\tsrl %c, %0, %1\n"  2
-reg: MULI1(reg,reg)   "\tcall mul\n"  13
-reg: MULU1(reg,reg)   "\tcall mul\n"  13
-reg: DIVU1(reg,reg)   "\tcall divu\n" 13
-reg: MODU1(reg,reg)   "\tcall divu\n" 13
-reg: DIVI1(reg,reg)   "\tcall div\n"  13
-reg: MODI1(reg,reg)   "\tcall div\n"  13
+reg: LSHI1(reg,reg)   "\tsll %c, %0, %1\n"  15
+reg: LSHU1(reg,reg)   "\tsll %c, %0, %1\n"  15
+reg: RSHI1(reg,reg)   "\tsra %c, %0, %1\n"  15
+reg: RSHU1(reg,reg)   "\tsrl %c, %0, %1\n"  15
+reg: MULI1(reg,reg)   "\tcall mul\n"  100
+reg: MULU1(reg,reg)   "\tcall mul\n"  100
+reg: DIVU1(reg,reg)   "\tcall divu\n" 100
+reg: MODU1(reg,reg)   "\tcall divu\n" 100
+reg: DIVI1(reg,reg)   "\tcall div\n"  100
+reg: MODI1(reg,reg)   "\tcall div\n"  100
 reg: CVPU1(reg)       "\tmov %c, %0\n"  move(a)
 reg: CVUP1(reg)       "\tmov %c, %0\n"  move(a)
 reg: CVII1(INDIRI1(addr))  "\tmov %c, [%0]\n"  3
@@ -286,12 +283,12 @@ reg: CVIU1(reg)      "\tmov %c, %0\n"  move(a)
 reg: CVUI1(reg)      "\tmov %c, %0\n"  move(a)
 reg: CVUU1(reg)      "\tmov %c, %0\n"  move(a)
 
-stmt: ASGNI1(addr,rc)  "\tmov [%0], %1\n"  1
-stmt: ASGNU1(addr,rc)  "\tmov [%0], %1\n"  1
-stmt: ASGNP1(addr,rc)  "\tmov [%0], %1\n"  1
-stmt: ARGI1(mrc3)  "\tpush %0\n"  1
-stmt: ARGU1(mrc3)  "\tpush %0\n"  1
-stmt: ARGP1(mrc3)  "\tpush %0\n"  1
+stmt: ASGNI1(addr,reg)  "\tmov [%0], %1\n"  3
+stmt: ASGNU1(addr,reg)  "\tmov [%0], %1\n"  3
+stmt: ASGNP1(addr,reg)  "\tmov [%0], %1\n"  3
+stmt: ARGI1(mrc)  "\tpush %0\n"  3
+stmt: ARGU1(mrc)  "\tpush %0\n"  3
+stmt: ARGP1(mrc)  "\tpush %0\n"  3
 stmt: ASGNB(reg,INDIRB(reg))  "\t ; Todo: copy %a bytes\n"
 stmt: ARGB(INDIRB(reg))  "# ARGB\n"
 memf: INDIRF1(addr)         "[%0]"
@@ -314,34 +311,25 @@ reg: CVFI1(reg)  "\tcall __ftol\n" 31
 reg: CVIF1(reg)  "\tpush %0\n\tfild [sp]\n\tadd sp, 1\n"  12
 
 addrj: ADDRGP1  "%a"
-addrj: reg      "%0"  2
-addrj: mem      "%0"  2
+addrj: reg      "%0"
+comp:  rc       "%0"
+comp:  mem_b    "%0"  1
 
-stmt: LABELV          "%a:\n"
-stmt: JUMPV(addrj)    "\tjmp %0\n"  3
-stmt: EQI1(mem,rc)    "\tcmp %0, %1\n\tje %a\n"   5
-stmt: GEI1(mem,rc)    "\tcmp %0, %1\n\tjge %a\n"  5
-stmt: GTI1(mem,rc)    "\tcmp %0, %1\n\tjg %a\n"   5
-stmt: LEI1(mem,rc)    "\tcmp %0, %1\n\tjle %a\n"  5
-stmt: LTI1(mem,rc)    "\tcmp %0, %1\n\tjl %a\n"   5
-stmt: NEI1(mem,rc)    "\tcmp %0, %1\n\tjne %a\n"  5
-stmt: GEU1(mem,rc)    "\tcmp %0, %1\n\tjae %a\n"  5
-stmt: GTU1(mem,rc)    "\tcmp %0, %1\n\tja  %a\n"  5
-stmt: LEU1(mem,rc)    "\tcmp %0, %1\n\tjbe %a\n"  5
-stmt: LTU1(mem,rc)    "\tcmp %0, %1\n\tjb  %a\n"  5
-stmt: EQI1(reg,mrc1)  "\tcmp %0, %1\n\tje %a\n"   4
-stmt: GEI1(reg,mrc1)  "\tcmp %0, %1\n\tjge %a\n"  4
-stmt: GTI1(reg,mrc1)  "\tcmp %0, %1\n\tjg %a\n"   4
-stmt: LEI1(reg,mrc1)  "\tcmp %0, %1\n\tjle %a\n"  4
-stmt: LTI1(reg,mrc1)  "\tcmp %0, %1\n\tjl %a\n"   4
-stmt: NEI1(reg,mrc1)  "\tcmp %0, %1\n\tjne %a\n"  4
+stmt: LABELV        "%a:\n"
+stmt: JUMPV(addrj)  "\tjmp %0\n"  2
+stmt: EQI1(reg,comp)  "\tcmp %0, %1\n\tje %a\n"   5
+stmt: GEI1(reg,comp)  "\tcmp %0, %1\n\tjge %a\n"  5
+stmt: GTI1(reg,comp)  "\tcmp %0, %1\n\tjg %a\n"   5
+stmt: LEI1(reg,comp)  "\tcmp %0, %1\n\tjle %a\n"  5
+stmt: LTI1(reg,comp)  "\tcmp %0, %1\n\tjl %a\n"   5
+stmt: NEI1(reg,comp)  "\tcmp %0, %1\n\tjne %a\n"  5
 
-stmt: EQU1(reg,mrc1)  "\tcmp %0, %1\n\tje %a\n"   4
-stmt: GEU1(reg,mrc1)  "\tcmp %0, %1\n\tjae %a\n"  4
-stmt: GTU1(reg,mrc1)  "\tcmp %0, %1\n\tja %a\n"   4
-stmt: LEU1(reg,mrc1)  "\tcmp %0, %1\n\tjbe %a\n"  4
-stmt: LTU1(reg,mrc1)  "\tcmp %0, %1\n\tjb %a\n"   4
-stmt: NEU1(reg,mrc1)  "\tcmp %0, %1\n\tjne %a\n"  4
+stmt: EQU1(reg,comp)  "\tcmp %0, %1\n\tje %a\n"   5
+stmt: GEU1(reg,comp)  "\tcmp %0, %1\n\tjae %a\n"  5
+stmt: GTU1(reg,comp)  "\tcmp %0, %1\n\tja %a\n"   5
+stmt: LEU1(reg,comp)  "\tcmp %0, %1\n\tjbe %a\n"  5
+stmt: LTU1(reg,comp)  "\tcmp %0, %1\n\tjb %a\n"   5
+stmt: NEU1(reg,comp)  "\tcmp %0, %1\n\tjne %a\n"  5
 cmpf: memf  " %0"
 cmpf: reg   "p"
 
@@ -430,7 +418,7 @@ static void progend(void) {
 static void target(Node p) {
     assert(p);
     switch (specific(p->op)) {
-    case MUL+U: case DIV+I: case DIV+U:
+    case MUL+I: case MUL+U: case DIV+I: case DIV+U:
         setreg(p, intreg[EAX]);     // Result location
         rtarget(p, 0, intreg[EAX]); // Where to store arg
         rtarget(p, 1, intreg[EBX]); // Where to store arg

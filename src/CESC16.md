@@ -303,7 +303,7 @@ stmt: ASGNP1(addr,reg)  "\tmov [%0], %1\n"  3
 stmt: ARGI1(mrc)  "\tpush %0\n"  3
 stmt: ARGU1(mrc)  "\tpush %0\n"  3
 stmt: ARGP1(mrc)  "\tpush %0\n"  3
-stmt: ASGNB(reg,INDIRB(reg))  "\t ; Todo: copy %a bytes\n"
+stmt: ASGNB(reg,INDIRB(reg))  "\t; Todo: copy %a words\n"
 stmt: ARGB(INDIRB(reg))  "# ARGB\n"
 memf: INDIRF1(addr)         "[%0]"
 memf: INDIRF1(addr)         "[%0]"
@@ -520,7 +520,7 @@ static void emit2(Node p) {
     }
     else if (op == ARG+B) {
         int struct_size = p->syms[0]->u.c.v.i;
-        print("\tsub sp, %d\n\tmov t1, sp\n", struct_size);
+        print("\tsub sp, sp, %d\n\tmov t1, sp\n", struct_size);
         print("\t; Todo: copy %d words. Source at t0, destination at t1\n", struct_size);
     }
     else if (op == CALL+I || op == CALL+U  || op == CALL+P || op == CALL+V) {
@@ -571,9 +571,6 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     int i;
     
     segment(CODE);
-    print("\n%s:\n", f->x.name);
-    print("\tpush bp\n");
-    print("\tmov bp, sp\n");
     usedmask[0] = usedmask[1] = 0;
     freemask[0] = freemask[1] = ~(unsigned)0;
     offset = 2; // Skip stored bp and ret value
@@ -595,6 +592,13 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     
     framesize = maxoffset; // Don't round up the frame size
     usedmask[IREG] &= INTVAR; // Only save the safe registers
+    int has_temps_or_args = (framesize > 0 || i > 0);
+    
+    print("\n%s:\n", f->x.name);
+    if (has_temps_or_args) {
+        print("\tpush bp\n");
+        print("\tmov bp, sp\n");
+    }
     
     if (framesize > 0) print("\tsub sp, sp, %d\n", framesize);
     
@@ -615,7 +619,7 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     }
     
     if (framesize > 0) print("\tmov sp, bp\n");
-    print("\tpop bp\n");
+    if (has_temps_or_args) print("\tpop bp\n");
     print("\tret\n");
 }
 

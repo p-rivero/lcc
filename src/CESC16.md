@@ -5,6 +5,7 @@ static char *regnames[] = {"zero", "sp", "bp", "t0", "t1", "t2", "t3", "a0", "a1
 // todo: add v0 as temp reg?
 static const int INTTMP = (1<<R_T0)|(1<<R_T1)|(1<<R_T2)|(1<<R_T3);
 static const int INTVAR = (1<<R_S0)|(1<<R_S1)|(1<<R_S2)|(1<<R_S3)|(1<<R_S4);
+static const int INTARG = (1<<R_A1)|(1<<R_A2)|(1<<R_A3);
 static const int INTRET = (1<<R_A0);
 
 static const int ARGREG_AMOUNT = R_A3 - R_A0 + 1;
@@ -272,16 +273,16 @@ reg: BCOMI1(reg)  "\tnot %c, %0\n"  3
 reg: BCOMU1(reg)  "\tnot %c, %0\n"  3
 reg: NEGI1(reg)   "\tsub %c, zero, %0\n"  3
 
-con5: CNSTI1  "%a"  range(a, 0, 15)
-reg: LSHI1(reg,con5)  "\tsll %c, %0, %1\n"  2
-reg: LSHU1(reg,con5)  "\tsll %c, %0, %1\n"  2
-reg: RSHI1(reg,con5)  "\tsra %c, %0, %1\n"  2
-reg: RSHU1(reg,con5)  "\tsrl %c, %0, %1\n"  2
+con4: CNSTI1  "%a"  range(a, 0, 15)
+reg: LSHI1(reg,con4)  "\tsll %c, %0, %1\n"  2
+reg: LSHU1(reg,con4)  "\tsll %c, %0, %1\n"  2
+reg: RSHI1(reg,con4)  "\tsra %c, %0, %1\n"  2
+reg: RSHU1(reg,con4)  "\tsrl %c, %0, %1\n"  2
 
-reg: LSHI1(reg,reg)   "\tsll %c, %0, %1\n"  15
-reg: LSHU1(reg,reg)   "\tsll %c, %0, %1\n"  15
-reg: RSHI1(reg,reg)   "\tsra %c, %0, %1\n"  15
-reg: RSHU1(reg,reg)   "\tsrl %c, %0, %1\n"  15
+reg: LSHI1(reg,reg)   "\tcall var_sll\n"  20
+reg: LSHU1(reg,reg)   "\tcall var_sll\n"  20
+reg: RSHI1(reg,reg)   "\tcall var_sra\n"  20
+reg: RSHU1(reg,reg)   "\tcall var_srl\n"  20
 reg: MULI1(reg,reg)   "\tcall mul\n"  100
 reg: MULU1(reg,reg)   "\tcall mul\n"  100
 reg: DIVU1(reg,reg)   "\tcall divu\n" 100
@@ -439,6 +440,12 @@ static void target(Node p) {
         rtarget(p, 0, intreg[R_A0]); // Where to store arg
         rtarget(p, 1, intreg[R_A1]); // Where to store arg
         break;
+    
+    case LSH+I: case LSH+U: case RSH+I: case RSH+U:
+        setreg(p, intreg[R_A0]);     // Result location
+        rtarget(p, 0, intreg[R_A0]); // Where to store src
+        rtarget(p, 1, intreg[R_A1]); // Where to store shamt
+        break;
         
     case CNST+I: case CNST+U: case CNST+P:
         // Use zero register for constants that are 0
@@ -497,23 +504,28 @@ static void clobber(Node p) {
         break;
         
     case MUL+I: case MUL+U: case DIV+I: case DIV+U: case MOD+I: case MOD+U:
-        // Todo: spill only the arg regs?
+        // Todo: spill only INTARG?
         spill(INTTMP, IREG, p);
+        break;
+    
+    case LSH+I: case LSH+U: case RSH+I: case RSH+U:
+        spill(INTARG, IREG, p);
         break;
     }
 }
 
 
 #define isfp(p) (optype((p)->op)==F)
-#define preg(f) ((f)[getregnum(p->x.kids[0])]->x.name)
-
+#define nodeC(p) (intreg[getregnum(p)]->x.name)
+#define node0(p) (intreg[getregnum(p->x.kids[0])]->x.name)
+#define node1(p) (intreg[getregnum(p->x.kids[1])]->x.name)
 
 static void emit2(Node p) {
     int op = specific(p->op);
 
     if (generic(op) == CVI || generic(op) == CVU || generic(op) == LOAD) {
-        char *dst = intreg[getregnum(p)]->x.name;
-        char *src = preg(intreg);
+        char *dst = nodeC(p);
+        char *src = node0(p);
         assert(opsize(p->op) <= opsize(p->x.kids[0]->op));
         if (dst != src)
             print("\tmov %s, %s\n", dst, src);

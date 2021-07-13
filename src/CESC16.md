@@ -2,7 +2,6 @@
 enum { R_ZERO=0, R_SP=1, R_BP=2, R_T0=3, R_T1=4, R_T2=5, R_T3=6, R_A0=7, R_A1=8, R_A2=9, R_A3=10, R_S0=11, R_S1=12, R_S2=13, R_S3=14, R_S4=15};
 static char *regnames[] = {"zero", "sp", "bp", "t0", "t1", "t2", "t3", "a0", "a1", "a2", "a3", "s0", "s1", "s2", "s3", "s4"};
 
-// todo: add v0 as temp reg?
 static const int INTTMP = (1<<R_T0)|(1<<R_T1)|(1<<R_T2)|(1<<R_T3);
 static const int INTVAR = (1<<R_S0)|(1<<R_S1)|(1<<R_S2)|(1<<R_S3)|(1<<R_S4);
 static const int INTARG = (1<<R_A1)|(1<<R_A2)|(1<<R_A3);
@@ -40,6 +39,7 @@ static void target(Node);
 extern int ckstack(Node, int);
 extern int memop(Node);
 extern int sametree(Node, Node);
+static Symbol argreg(int);
 static Symbol intreg[32];
 static Symbol fltreg[32];
 
@@ -234,13 +234,12 @@ rc:   acon "%0"
 mrc: mem  "%0"
 mrc: rc   "%0"
 
-reg: acon         "\tmov %c, %0\n"  2
 reg: ADDRFP1      "\tadd %c, bp, %a\n"  3
 reg: ADDRLP1      "\tadd %c, bp, %a\n"  3
 reg: mrc          "\tmov %c, %0\n"  2
-reg: LOADI1(reg)  "# move\n"  1
-reg: LOADU1(reg)  "# move\n"  1
-reg: LOADP1(reg)  "# move\n"  1
+reg: LOADI1(reg)  "# move\n"  move(a)
+reg: LOADU1(reg)  "# move\n"  move(a)
+reg: LOADP1(reg)  "# move\n"  move(a)
 reg: CNSTF1  "# reg\n"  range(a, 0, 0)
 reg: CNSTI1  "# reg\n"  range(a, 0, 0)
 reg: CNSTP1  "# reg\n"  range(a, 0, 0)
@@ -301,9 +300,9 @@ reg: CVUU1(reg)      "\tmov %c, %0\n"  move(a)
 stmt: ASGNI1(addr,reg)  "\tmov [%0], %1\n"  3
 stmt: ASGNU1(addr,reg)  "\tmov [%0], %1\n"  3
 stmt: ASGNP1(addr,reg)  "\tmov [%0], %1\n"  3
-stmt: ARGI1(mrc)  "\tpush %0\n"  3
-stmt: ARGU1(mrc)  "\tpush %0\n"  3
-stmt: ARGP1(mrc)  "\tpush %0\n"  3
+stmt: ARGI1(rc)  "# arg\n"  3
+stmt: ARGU1(rc)  "# arg\n"  3
+stmt: ARGP1(rc)  "# arg\n"  3
 stmt: ASGNB(reg,INDIRB(reg))  "\t; Todo: copy %a words\n"
 stmt: ARGB(INDIRB(reg))  "# ARGB\n"
 memf: INDIRF1(addr)         "[%0]"
@@ -426,6 +425,36 @@ static void progend(void) {
 }
 
 
+// Given an ARG node, find its corresponding CALL node
+static Node find_CALL(Node p, int *offset) {
+    assert(generic(p->op) == ARG);
+    *offset = 0;
+    Node funct = p;
+    
+    // p->link points at the next node. The root should be the called function 
+    while (1) {
+        // Reached the root
+        if (funct->link == NULL) {
+            break;
+        }
+        // "If wants_dag=0, only CALLV appears as root; other CALL nodes appear as right operands to ASGN" funct->kids[1]->kids[0]->op
+        if (generic(funct->op) == ASGN && generic(funct->kids[1]->op) == CALL) {
+            funct = funct->kids[1];
+            break;
+        }
+        // Previous condition is only triggered on target(), this works on emit2()
+        if (generic(funct->op) == ASGN && generic(funct->kids[1]->op) == LOAD && generic(funct->kids[1]->kids[0]->op) == CALL) {
+            funct = funct->kids[1]->kids[0];
+            break;
+        }
+        
+        funct = funct->link;
+        if (generic(funct->op) == ARG) (*offset)++; // Found a new ARG: increment offset
+    }
+    assert(generic(funct->op) == CALL);
+    return funct;
+}
+
 static void target(Node p) {
     assert(p);
     switch (specific(p->op)) {
@@ -469,13 +498,26 @@ static void target(Node p) {
         break;
         
     case CALL+I: case CALL+U: case CALL+P: case CALL+V:
-        rtarget(p, 0, intreg[R_T3]);
         setreg(p, intreg[R_A0]); // Result location
         break;
         
     case RET+I: case RET+U: case RET+P:
         rtarget(p, 0, intreg[R_A0]); // Where to store ret value
         break;
+        
+    case ARG+I: case ARG+U: case ARG+P: {
+        // Arguments are computed right to left: the LAST (leftmost) 4 args may be passed in registers
+        int offset;
+        Node funct = find_CALL(p, &offset);
+        
+        // Once the function node is reached, see if it's variadic
+        int is_variadic = variadic(funct->kids[0]->syms[0]->type);
+        Symbol r = argreg(offset);
+        
+        // If this arg is passed in a register, store the data in that register
+        if (r != NULL && !is_variadic) rtarget(p, 0, r);
+        break;
+        }
     }
 }
 
@@ -504,8 +546,7 @@ static void clobber(Node p) {
         break;
         
     case MUL+I: case MUL+U: case DIV+I: case DIV+U: case MOD+I: case MOD+U:
-        // Todo: spill only INTARG?
-        spill(INTTMP, IREG, p);
+        spill(INTARG, IREG, p);
         break;
     
     case LSH+I: case LSH+U: case RSH+I: case RSH+U:
@@ -519,6 +560,7 @@ static void clobber(Node p) {
 #define nodeC(p) (intreg[getregnum(p)]->x.name)
 #define node0(p) (intreg[getregnum(p->x.kids[0])]->x.name)
 #define node1(p) (intreg[getregnum(p->x.kids[1])]->x.name)
+#define emitchild(p, N) (emitasm(p->kids[N], _nts[_rule(p->x.state, p->x.inst)][N]))
 
 static void emit2(Node p) {
     int op = specific(p->op);
@@ -536,24 +578,61 @@ static void emit2(Node p) {
         print("\t; Todo: copy %d words. Source at t0, destination at t1\n", struct_size);
     }
     else if (op == CALL+I || op == CALL+U  || op == CALL+P || op == CALL+V) {
-        print("\tcall %s\n", p->kids[0]->syms[0]->x.name);
-        char *arg_sz = p->syms[0]->x.name;
-        if (strcmp(arg_sz, "0"))   // arg_sz != "0"
-            print("\tadd sp, sp, %s\n", arg_sz);
+        int is_variadic = variadic(p->kids[0]->syms[0]->type);
+        int arg_sz = p->syms[0]->u.c.v.i;
+        
+        // Call the function
+        print("\tcall ");
+        emitchild(p, 0);
+        print("\n");
+        // Non-variadic functions pass the first 4 arguments on registers
+        if (!is_variadic) arg_sz -= ARGREG_AMOUNT;
+        
+        if (arg_sz > 0) print("\tadd sp, sp, %d\n", arg_sz);
     }
-    // Todo: emit ARG operators (op == ARG+I || op == ARG+U || op == ARG+P)
+    else if (op == ARG+I || op == ARG+U || op == ARG+P) {
+        // Arguments are computed right to left: the LAST (leftmost) 4 args may be passed in registers
+        // p->link points at the next ARG. The last arg points at the called function 
+        int offset;
+        Node funct = find_CALL(p, &offset);
+        
+        // Once the function node is reached, see if it's variadic
+        int is_variadic = variadic(funct->kids[0]->syms[0]->type);
+        Symbol r = argreg(offset);
+        
+        // Arguments of a variadic function are always passed in the stack
+        if (r == NULL || is_variadic) {
+            // Pass in stack
+            print("\tpush ");
+            emitchild(p, 0);
+            print("\n");
+        }
+        // First 4 arguments: pass in registers
+        // If the argument wasn't already stored in the register, emit a mov
+        else if (p->x.kids[0] == NULL || p->x.kids[0]->syms[RX] != r) {
+            print("\tmov %s, ", r->name);
+            emitchild(p, 0);
+            print("\n");
+        }
+    }
 }
 
-// static Symbol argreg(argno, offset, ty) int argno, offset, ty; {
-//     // Select an argument register, return null if the arg is stored in stack
-//     if (ty == F || ty == D) assert(0); // Floats not supported
-    
-//     if (offset >= ARGREG_AMOUNT) return NULL;
-//     else return ireg[R_A0 + offset];
-// }
+static Symbol argreg(int offset) {
+    // Select an argument register, return null if the arg is stored in stack    
+    if (offset >= ARGREG_AMOUNT) return NULL;
+    else return intreg[R_A0 + offset];
+}
+
 static void doarg(Node p) {
-    assert(p && p->syms[0]);
-    mkactual(1, p->syms[0]->u.c.v.i);
+    static int argno;
+    
+    if (argoffset == 0) argno = 0;
+    p->x.argno = argno++;
+    
+    // Store the argument offset in syms[2]
+    int align = p->syms[1]->u.c.v.i;
+    int offs = mkactual(align, p->syms[0]->u.c.v.i);
+    p->syms[2] = intconst(offs);
 }
 
 static void blkfetch(int k, int off, int reg, int tmp) {
@@ -581,6 +660,7 @@ static void local(Symbol p) {
 
 static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     int i;
+    Symbol argregs[ARGREG_AMOUNT];
     
     segment(CODE);
     usedmask[0] = usedmask[1] = 0;
@@ -588,13 +668,19 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     offset = 2; // Skip stored bp and ret value
     
     for (i = 0; callee[i]; i++) {
+        // Assign location for argument i
         Symbol p = callee[i];
         Symbol q = caller[i];
         assert(q);
         p->x.offset = q->x.offset = offset;
         p->x.name = q->x.name = stringf("%d", p->x.offset);
-        p->sclass = q->sclass = AUTO;
+        
+        Symbol r = argreg(offset-2);
+        if (i < ARGREG_AMOUNT) argregs[i] = r;
+        
         offset += q->type->size; // Don't round up
+        
+        p->sclass = q->sclass = AUTO;
     }
     
     assert(caller[i] == 0);
@@ -760,8 +846,8 @@ Interface CESC16IR = {
     0,  // wants_callb      0 if the front-end is responsible for implementing functions that return structs
     0,  // wants_argb       0 if the front-end is responsible for implementing arguments that are structs
     0,  // left_to_right    0 if arguments are evaluated and presented to the back-end right to left
-    0,  // wants_dag        0 if the front-end undags all nodes with reference counts exceeding 
-    0,        /* unsigned_char */
+    0,  // wants_dag        0 if the front-end undags all nodes with reference counts exceeding one
+    0,  // unsigned_char    0 if char is a signed type
     address,
     blockbeg,
     blockend,

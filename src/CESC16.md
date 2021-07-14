@@ -327,6 +327,7 @@ addrj: ADDRGP1  "%a"
 addrj: reg      "%0"
 comp:  rc       "%0"
 comp:  mem_b    "%0"  1
+con0:  CNSTI1   "%a"  range(a, 0, 0)
 
 stmt: LABELV        "%a:\n"
 stmt: JUMPV(addrj)  "\tjmp %0\n"  2
@@ -343,9 +344,15 @@ stmt: GTU1(reg,comp)  "\tcmp %0, %1\n\tja %a\n"   5
 stmt: LEU1(reg,comp)  "\tcmp %0, %1\n\tjbe %a\n"  5
 stmt: LTU1(reg,comp)  "\tcmp %0, %1\n\tjb %a\n"   5
 stmt: NEU1(reg,comp)  "\tcmp %0, %1\n\tjne %a\n"  5
+
+stmt: EQI1(mrc,con0)  "\ttest %0\n\tjz %a\n"   4
+stmt: NEI1(mrc,con0)  "\ttest %0\n\tjnz %a\n"  4
+stmt: EQU1(mrc,con0)  "\ttest %0\n\tjz %a\n"   4
+stmt: NEU1(mrc,con0)  "\ttest %0\n\tjnz %a\n"  4
+
+
 cmpf: memf  " %0"
 cmpf: reg   "p"
-
 stmt: EQF1(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %b\n\tje %a\n%b:\n"
 stmt: GEF1(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjbe %a\n\n"
 stmt: GTF1(cmpf,reg)  "\tfcomp%0\n\tfstsw ax\n\tsahf\n\tjp %a\n\tjb %a\n"
@@ -656,8 +663,6 @@ static void local(Symbol p) {
     if (askregvar(p, (*IR->x.rmap)(ttob(p->type))) == 0)
         mkauto(p);
 }
-
-// todo: check using & on an arg, and using variable << to spill
 
 static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     int i;

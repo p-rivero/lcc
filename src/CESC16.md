@@ -471,6 +471,8 @@ static void target(Node p) {
         break;
     
     case LSH+I: case LSH+U: case RSH+I: case RSH+U:
+        assert(p->kids[1]);
+        if (generic(p->kids[1]->op) == CNST) break;
         setreg(p, intreg[R_A0]);     // Result location
         rtarget(p, 0, intreg[R_A0]); // Where to store src
         rtarget(p, 1, intreg[R_A1]); // Where to store shamt
@@ -550,7 +552,9 @@ static void clobber(Node p) {
         break;
     
     case LSH+I: case LSH+U: case RSH+I: case RSH+U:
-        spill(INTARG, IREG, p);
+        assert(p->kids[1]);
+        if (generic(p->kids[1]->op) != CNST)
+            spill(INTARG, IREG, p);
         break;
     }
 }
@@ -842,7 +846,8 @@ Interface CESC16IR = {
     1, 1, 0,  /* T * (pointer) */
     0, 1, 0,  /* struct */
     1,  // little_endian
-    1,  // mulops_calls     0 if the hardware implements multiply, divide, and remainder
+    2,  /* mulops_calls     0 if the hardware implements multiply, divide, and remainder
+                            1 if only MUL/DIV are calls, 2 if MUL/DIV and variable shifts are calls */
     0,  // wants_callb      0 if the front-end is responsible for implementing functions that return structs
     0,  // wants_argb       0 if the front-end is responsible for implementing arguments that are structs
     0,  // left_to_right    0 if arguments are evaluated and presented to the back-end right to left

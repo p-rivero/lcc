@@ -2,10 +2,21 @@
 
 static char rcsid[] = "$Id$";
 
-#define iscall(op) (generic(op) == CALL \
-	|| IR->mulops_calls \
-	&& (generic(op)==DIV||generic(op)==MOD||generic(op)==MUL) \
-	&& ( optype(op)==U  || optype(op)==I))
+static int iscall(Node p) {
+	assert(p);
+	int op = p->op;
+	if (generic(op) == CALL) return 1;
+	
+	if (IR->mulops_calls   && (generic(op)==DIV || generic(op)==MOD || generic(op)==MUL)) {
+		return (optype(op)==U || optype(op)==I);
+	}
+	if (IR->mulops_calls>1 && ( generic(op)==RSH || generic(op)==LSH)) {
+		assert(p->kids[1]);
+		return (generic(p->kids[1]->op) != CNST);
+	}
+	return 0;
+}
+
 static Node forest;
 static struct dag {
 	struct node node;
@@ -315,11 +326,18 @@ Node listnodes(Tree tp, int tlab, int flab) {
 		      	reset();
 		      p = listnodes(tp->kids[1], 0, 0); } break;
 	case BOR: case BAND: case BXOR:
-	case ADD: case SUB:  case RSH:
-	case LSH:   { assert(tlab == 0 && flab == 0);
+	case ADD: case SUB: { assert(tlab == 0 && flab == 0);
 		      l = listnodes(tp->kids[0], 0, 0);
 		      r = listnodes(tp->kids[1], 0, 0);
 		      p = node(op, l, r, NULL); } break;
+	case RSH: case LSH: { assert(tlab == 0 && flab == 0);
+		      l = listnodes(tp->kids[0], 0, 0);
+		      r = listnodes(tp->kids[1], 0, 0);
+		      p = node(op, l, r, NULL);
+		      if (IR->mulops_calls>1 && isint(tp->type) && generic(r->op) != CNST) {
+		      	list(p);
+		      	cfunc->u.f.ncalls++;
+		      } } break;
 	case DIV: case MUL:
 	case MOD:   { assert(tlab == 0 && flab == 0);
 		      l = listnodes(tp->kids[0], 0, 0);
@@ -559,7 +577,7 @@ static Node undag(Node forest) {
 				p->syms[2]->u.t.cse = NULL;
 				addlocal(p->syms[2]);
 			}
-		} else if (iscall(p->op) && p->count >= 1)
+		} else if (iscall(p) && p->count >= 1)
 			visit(p, 1);
 		else {
 			assert(p->count == 0),
@@ -629,8 +647,8 @@ static Node visit(Node p, int listed) {
 	if (p)
 		if (p->syms[2])
 			p = tmpnode(p);
-		else if (p->count <= 1 && !iscall(p->op)
-		||       p->count == 0 &&  iscall(p->op)) {
+		else if (p->count <= 1 && !iscall(p)
+		||       p->count == 0 &&  iscall(p)) {
 			p->kids[0] = visit(p->kids[0], 0);
 			p->kids[1] = visit(p->kids[1], 0);
 		}

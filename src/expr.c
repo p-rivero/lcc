@@ -482,12 +482,24 @@ Tree rightkid(Tree p) {
 	assert(p);
 	return p;
 }
+static int iscall(Tree p) {
+	assert(p);
+	int op = p->op;
+	if (generic(op) == CALL) return 1;
+	
+	if (IR->mulops_calls   && (generic(op)==DIV || generic(op)==MOD || generic(op)==MUL)) {
+		return (optype(op)==U || optype(op)==I);
+	}
+	if (IR->mulops_calls>1 && ( generic(op)==RSH || generic(op)==LSH)) {
+		assert(p->kids[1]);
+		return (generic(p->kids[1]->op) != CNST);
+	}
+	return 0;
+}
 int hascall(Tree p) {
 	if (p == 0)
 		return 0;
-	if (generic(p->op) == CALL || (IR->mulops_calls &&
-	  (p->op == DIV+I || p->op == MOD+I || p->op == MUL+I
-	|| p->op == DIV+U || p->op == MOD+U || p->op == MUL+U)))
+	if (iscall(p))
 		return 1;
 	return hascall(p->kids[0]) || hascall(p->kids[1]);
 }

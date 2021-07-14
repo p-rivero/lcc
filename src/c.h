@@ -115,7 +115,7 @@ typedef struct interface {
 	Metrics ptrmetric;
 	Metrics structmetric;
 	unsigned little_endian:1;
-	unsigned mulops_calls:1;
+	unsigned mulops_calls:2;
 	unsigned wants_callb:1;
 	unsigned wants_argb:1;
 	unsigned left_to_right:1;

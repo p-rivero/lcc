@@ -54,7 +54,6 @@ static int cseg;
     - LOADP1=1255
     - VREGP=711
 */
-// Todo: add long support
 %}
 %start stmt
 %term CNSTF1=1041
@@ -653,43 +652,65 @@ static void blkloop(int dreg, int doff, int sreg, int soff, int size, int tmps[]
 static void local(Symbol p) {
     if (isfloat(p->type))
         p->sclass = AUTO;
-    if (askregvar(p, (*IR->x.rmap)(ttob(p->type))) == 0) {
-        assert(p->sclass == AUTO);
-        offset = roundup(offset + p->type->size, p->type->align);
-        p->x.offset = -offset;
-        p->x.name = stringd(-offset);
-    }
+        
+    if (askregvar(p, (*IR->x.rmap)(ttob(p->type))) == 0)
+        mkauto(p);
 }
 
+// todo: check using & on an arg, and using variable << to spill
 
 static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     int i;
-    Symbol argregs[ARGREG_AMOUNT];
+    int is_variadic = variadic(f->type);
     
     segment(CODE);
     usedmask[0] = usedmask[1] = 0;
     freemask[0] = freemask[1] = ~(unsigned)0;
-    offset = 2; // Skip stored bp and ret value
+    int arg_offset = 2; // Stack offset for fetching arguments. Skip stored bp and ret value
+    offset = 0; // Stack offset for local variables. Increment in order to allocate a word.
     
     for (i = 0; callee[i]; i++) {
         // Assign location for argument i
         Symbol p = callee[i];
         Symbol q = caller[i];
         assert(q);
-        p->x.offset = q->x.offset = offset;
+        p->x.offset = q->x.offset = arg_offset;
         p->x.name = q->x.name = stringf("%d", p->x.offset);
         
-        Symbol r = argreg(offset-2);
-        if (i < ARGREG_AMOUNT) argregs[i] = r;
+        Symbol r = argreg(i);
         
-        offset += q->type->size; // Don't round up
-        
-        p->sclass = q->sclass = AUTO;
+        // On variadic functions, all arguments are stored in stack
+        if (is_variadic || r == NULL) {
+            p->sclass = q->sclass = AUTO;
+            arg_offset += q->type->size; // Increment stack offset
+        }
+        // No calls (that could overwrite the argument) are performed: leave argument in place.
+        // (Except if the address of the variable is needed, or if a return value will be stored in a0)
+        else if (n == 0 && !isstruct(q->type) && !p->addressed && !(i == 0 && f->type->type->op != VOID)) {
+            // Note that this is only possible if 
+            p->sclass = q->sclass = REGISTER;
+            askregvar(p, r);
+            assert(p->x.regnode && p->x.regnode->vbl == p);
+            q->x = p->x;
+            q->type = p->type;
+        }
+        // Register will be overwritten, but it's used enough to be moved to another register
+        else if (n >= 0 && askregvar(p, rmap(ttob(p->type)))) {
+            assert(q->sclass != REGISTER);
+            p->sclass = q->sclass = REGISTER;
+            q->type = p->type;
+        }
+        // Register must be stored in memory (using a negative offset)
+        else {
+            offset++;   // Allocate 1 word in the stack
+            p->x.offset = q->x.offset = -offset;    // Local variables have a negative index
+            p->x.name = q->x.name = stringf("%d", p->x.offset);
+        }
     }
     
     assert(caller[i] == 0);
-    offset = maxoffset = 0;
     
+    maxoffset = offset;
     gencode(caller, callee);
     
     framesize = maxoffset; // Don't round up the frame size
@@ -708,6 +729,30 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     for (i = R_S0; i <= R_S4; i++) {
         if (usedmask[IREG] & (1<<i)) {
             print("\tpush %s\n", regnames[i]);
+        }
+    }
+    
+    for (i = 0; i < ARGREG_AMOUNT && callee[i]; i++) {
+        Symbol r = argreg(i);
+        if (r != NULL && r->x.regnode != callee[i]->x.regnode) {
+            
+            Symbol out = callee[i];
+            Symbol in  = caller[i];
+            
+            int rn = r->x.regnode->number;
+            int rs = r->x.regnode->set;
+            int tyin = ttob(in->type);
+
+            assert(out && in && r && r->x.regnode);
+            assert(out->sclass != REGISTER || out->x.regnode);
+            if (out->sclass == REGISTER && (isint(out->type) || out->type == in->type)) {
+                int outn = out->x.regnode->number;
+                print("\tmov %s, %s\n", regnames[outn], regnames[rn]);
+            }
+            else {
+                assert(in->type->size == 1);
+                print("\tmov [bp+%d], %s\n", in->x.offset, r->name);
+            }
         }
     }
     
@@ -838,7 +883,7 @@ Interface CESC16IR = {
     1, 1, 0,  /* char */
     1, 1, 0,  /* short */
     1, 1, 0,  /* int */
-    1, 1, 0,  /* long */    // Todo: Add support for long
+    1, 1, 0,  /* long */
     1, 1, 0,  /* long long */
     1, 1, 1,  /* float */
     1, 1, 1,  /* double */

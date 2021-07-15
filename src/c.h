@@ -6,6 +6,8 @@
 #include <limits.h>
 #include <string.h>
 
+extern unsigned char BYTE_SZ;
+
 #define NEW(p,a) ((p) = allocate(sizeof *(p), (a)))
 #define NEW0(p,a) memset(NEW((p),(a)), 0, sizeof *(p))
 #define isaddrop(op) (specific(op)==ADDRG+P || specific(op)==ADDRL+P \
@@ -33,8 +35,8 @@
 #define roundup(x,n) (((x)+((n)-1))&(~((n)-1)))
 #define mkop(op,ty) (specific((op) + ttob(ty)))
 
-#define extend(x,ty) ((x)&(1<<(8*(ty)->size-1)) ? (x)|((~0UL)<<(8*(ty)->size-1)) : (x)&ones(8*(ty)->size))
-#define ones(n) ((n)>=8*sizeof (unsigned long) ? ~0UL : ~((~0UL)<<(n)))
+#define extend(x,ty) ((x)&(1<<(BYTE_SZ*(ty)->size-1)) ? (x)|((~0UL)<<(BYTE_SZ*(ty)->size-1)) : (x)&ones(BYTE_SZ*(ty)->size))
+#define ones(n) ((n)>=BYTE_SZ*sizeof (unsigned long) ? ~0UL : ~((~0UL)<<(n)))
 
 #define isqual(t)     ((t)->op >= CONST)
 #define unqual(t)     (isqual(t) ? (t)->type : (t))
@@ -60,9 +62,9 @@
 #define isenum(t)     (unqual(t)->op == ENUM)
 #define fieldsize(p)  (p)->bitsize
 #define fieldright(p) ((p)->lsb - 1)
-#define fieldleft(p)  (8*(p)->type->size - \
+#define fieldleft(p)  (BYTE_SZ*(p)->type->size - \
                         fieldsize(p) - fieldright(p))
-#define fieldmask(p)  (~(fieldsize(p) < 8*unsignedtype->size ? ~0u<<fieldsize(p) : 0u))
+#define fieldmask(p)  (~(fieldsize(p) < BYTE_SZ*unsignedtype->size ? ~0u<<fieldsize(p) : 0u))
 typedef struct node *Node;
 
 typedef struct list *List;
@@ -104,6 +106,7 @@ typedef struct metrics {
 	unsigned char size, align, outofline;
 } Metrics;
 typedef struct interface {
+	unsigned char byte_size;
 	Metrics charmetric;
 	Metrics shortmetric;
 	Metrics intmetric;

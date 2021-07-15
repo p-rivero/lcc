@@ -881,10 +881,11 @@ static void space(int n) {
 }
 
 
-// Not byte-oriented: integer size is 1 word
 Interface CESC16IR = {
-    // Type metrics: Size, Align and outofline flag
-    // If outofline=1, constants cannot appear in dags
+    // Not byte-oriented: integer size is 1 word, each word is 16 bits wide
+    16,       /* byte size (in bits) */
+    
+    // Type metrics: Size, Align and outofline flag (if outofline=1, constants cannot appear in dags)
     1, 1, 0,  /* char */
     1, 1, 0,  /* short */
     1, 1, 0,  /* int */
@@ -895,6 +896,7 @@ Interface CESC16IR = {
     1, 1, 1,  /* long double */
     1, 1, 0,  /* T * (pointer) */
     0, 1, 0,  /* struct */
+    
     1,  // little_endian
     2,  /* mulops_calls     0 if the hardware implements multiply, divide, and remainder
                             1 if only MUL/DIV are calls, 2 if MUL/DIV and variable shifts are calls */

@@ -160,11 +160,11 @@ static int emittype(Type ty, int lev, int col) {
 				print(":"), col += 1;
 			col = emittype(p->type, lev + 1, col);
 			if (p->lsb)
-				print(",%d,%d;", 8*p->offset +
+				print(",%d,%d;", BYTE_SZ*p->offset +
 					(IR->little_endian ? fieldright(p) : fieldleft(p)),
 					fieldsize(p));
 			else
-				print(",%d,%d;", 8*p->offset, 8*p->type->size);
+				print(",%d,%d;", BYTE_SZ*p->offset, BYTE_SZ*p->type->size);
 			col += 1+3+1+3+1;	/* accounts for ,%d,%d; */
 			if (col >= 80 && p->link) {
 				print("\\\\\",%d,0,0,0\n.stabs \"", N_LSYM);

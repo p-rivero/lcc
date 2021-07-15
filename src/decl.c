@@ -4,7 +4,7 @@ static char rcsid[] = "$Id$";
 
 #define add(x,n) (x > inttype->u.sym->u.limits.max.i-(n) ? (overflow=1,x) : x+(n))
 #define chkoverflow(x,n) ((void)add(x,n))
-#define bits2bytes(n) (((n) + 7)/8)
+#define bits2bytes(n) (((n) + (BYTE_SZ-1))/BYTE_SZ)
 static int regcount;
 
 static List autos, registers;
@@ -574,10 +574,10 @@ static void fields(Type ty) {
 				}
 				t = gettok();
 				p->bitsize = intexpr(0, 0);
-				if (p->bitsize > 8*inttype->size || p->bitsize < 0) {
+				if (p->bitsize > BYTE_SZ*inttype->size || p->bitsize < 0) {
 					error("`%d' is an illegal bit-field size\n",
 						p->bitsize);
-					p->bitsize = 8*inttype->size;
+					p->bitsize = BYTE_SZ*inttype->size;
 				} else if (p->bitsize == 0 && id) {
 					warning("extraneous 0-width bit field `%t %s' ignored\n", p->type, id);
 
@@ -617,7 +617,7 @@ static void fields(Type ty) {
 		if (ty->op == UNION)
 			off = bits = 0;
 		else if (p->bitsize == 0 || bits == 0
-		|| bits - 1 + p->bitsize > 8*unsignedtype->size) {
+		|| bits - 1 + p->bitsize > BYTE_SZ*unsignedtype->size) {
 			off = add(off, bits2bytes(bits-1));
 			bits = 0;
 			chkoverflow(off, a - 1);
@@ -633,7 +633,7 @@ static void fields(Type ty) {
 			if (IR->little_endian)
 				p->lsb = bits;
 			else
-				p->lsb = 8*unsignedtype->size - bits + 1
+				p->lsb = BYTE_SZ*unsignedtype->size - bits + 1
 					- p->bitsize + 1;
 			bits += p->bitsize;
 		} else

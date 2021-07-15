@@ -187,7 +187,7 @@ Tree cnsttree(Type ty, ...) {
 	va_start(ap, ty);
 	switch (ty->op) {
 	case INT:     p->u.v.i = va_arg(ap, long); break;
-	case UNSIGNED:p->u.v.u = va_arg(ap, unsigned long)&ones(8*ty->size); break;
+	case UNSIGNED:p->u.v.u = va_arg(ap, unsigned long)&ones(BYTE_SZ*ty->size); break;
 	case FLOAT:   p->u.v.d = va_arg(ap, long double); break;
 	case POINTER: p->u.v.p = va_arg(ap, void *); break;
 	default: assert(0);
@@ -317,7 +317,7 @@ Tree asgntree(int op, Tree l, Tree r) {
 		else
 			error("assignment to const location\n");
 	if (l->op == FIELD) {
-		long n = 8*l->u.field->type->size - fieldsize(l->u.field);
+		long n = BYTE_SZ*l->u.field->type->size - fieldsize(l->u.field);
 		if (n > 0 && isunsigned(l->u.field->type))
 			r = bittree(BAND, r,
 				cnsttree(r->type, (unsigned long)fieldmask(l->u.field)));

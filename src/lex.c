@@ -898,7 +898,7 @@ static int backslash(int q) {
 			return 0;
 		}
 		for (c = 0; map[*cp]&(DIGIT|HEX); cp++) {
-			if (c >> (8*widechar->size - 4))
+			if (c >> (BYTE_SZ*widechar->size - 4))
 				overflow = 1;
 			if (map[*cp]&DIGIT)
 				c = (c<<4) + *cp - '0';
@@ -907,7 +907,7 @@ static int backslash(int q) {
 		}
 		if (overflow)
 			warning("overflow in hexadecimal escape sequence\n");
-		return c&ones(8*widechar->size);
+		return c&ones(BYTE_SZ*widechar->size);
 		}
 	case '0': case '1': case '2': case '3':
 	case '4': case '5': case '6': case '7':

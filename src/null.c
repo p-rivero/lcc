@@ -30,6 +30,7 @@ static void I(stabtype)(Symbol p) {}
 static char rcsid[] = "$Id$";
 
 Interface nullIR = {
+	8,			/* byte size (in bits) */
 	1, 1, 0,	/* char */
 	2, 2, 0,	/* short */
 	4, 4, 0,	/* int */

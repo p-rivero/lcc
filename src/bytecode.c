@@ -237,6 +237,7 @@ static void I(stabline)(Coordinate *cp) {
 #define b_blockend blockend
 
 Interface bytecodeIR = {
+	8,  		/* byte size (in bits) */
 	1, 1, 0,	/* char */
 	2, 2, 0,	/* short */
 	4, 4, 0,	/* int */

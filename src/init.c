@@ -123,7 +123,7 @@ static int initfields(Field p, Field q) {
 
 	do {
 		i = initvalue(inttype)->u.v.i;
-		if (fieldsize(p) < 8*p->type->size) {
+		if (fieldsize(p) < BYTE_SZ*p->type->size) {
 			if (p->type == inttype &&
 			   (i < -(int)(fieldmask(p)>>1)-1 || i > (int)(fieldmask(p)>>1))
 			||  p->type == unsignedtype && (i&~fieldmask(p)) !=  0)
@@ -142,14 +142,14 @@ static int initfields(Field p, Field q) {
 			break;
 		p = p->link;
 	} while (t == ',' && (t = gettok()) != 0);
-	n = (n + 7)/8;
+	n = (n + BYTE_SZ-1)/BYTE_SZ;
 	for (i = 0; i < n; i++) {
 		Value v;
 		if (IR->little_endian) {
 			v.u = (unsigned char)bits;
 			bits >>= 8;
 		} else {	/* a big endian */
-			v.u = (unsigned char)(bits>>(8*(unsignedtype->size - 1)));
+			v.u = (unsigned char)(bits>>(BYTE_SZ*(unsignedtype->size - 1)));
 			bits <<= 8;
 		}
 		(*IR->defconst)(U, unsignedchar->size, v);

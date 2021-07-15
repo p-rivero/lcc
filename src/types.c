@@ -1,6 +1,8 @@
 #include "c.h"
 #include <float.h>
 
+unsigned char BYTE_SZ = 0;
+
 static char rcsid[] = "$Id$";
 
 static Field isfield(const char *, Field);
@@ -45,11 +47,11 @@ static Type xxinit(int op, char *name, Metrics m) {
 	p->addressed = m.outofline;
 	switch (ty->op) {
 	case INT:
-		p->u.limits.max.i = ones(8*ty->size)>>1;
+		p->u.limits.max.i = ones(BYTE_SZ*ty->size)>>1;
 		p->u.limits.min.i = -p->u.limits.max.i - 1;
 		break;
 	case UNSIGNED:
-		p->u.limits.max.u = ones(8*ty->size);
+		p->u.limits.max.u = ones(BYTE_SZ*ty->size);
 		p->u.limits.min.u = 0;
 		break;
 	case FLOAT:
@@ -115,6 +117,10 @@ void type_init(int argc, char *argv[]) {
 	xx(structmetric)
 #undef xx
 	}
+	
+	BYTE_SZ = IR->byte_size;
+	assert(BYTE_SZ > 0);
+	
 #define xx(v,name,op,metrics) v=xxinit(op,name,IR->metrics)
 	xx(chartype,        "char",              IR->unsigned_char ? UNSIGNED : INT,charmetric);
 	xx(doubletype,      "double",            FLOAT,   doublemetric);
@@ -139,7 +145,7 @@ void type_init(int argc, char *argv[]) {
 	}
 	pointersym = install(string("T*"), &types, GLOBAL, PERM);
 	pointersym->addressed = IR->ptrmetric.outofline;
-	pointersym->u.limits.max.p = (void*)ones(8*IR->ptrmetric.size);
+	pointersym->u.limits.max.p = (void*)ones(BYTE_SZ*IR->ptrmetric.size);
 	pointersym->u.limits.min.p = 0;
 	voidptype = ptr(voidtype);
 	funcptype = ptr(func(voidtype, NULL, 1));

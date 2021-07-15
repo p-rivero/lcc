@@ -1129,6 +1129,7 @@ static void stabsym(Symbol p) {
                 (*IR->stabline)(&p->src);
 }
 Interface alphaIR = {
+        8,        /* byte size (in bits) */
         1, 1, 0,  /* char */
         2, 2, 0,  /* short */
         4, 4, 0,  /* int */

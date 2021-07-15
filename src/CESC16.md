@@ -302,7 +302,7 @@ stmt: ASGNP1(addr,reg)  "\tmov [%0], %1\n"  3
 stmt: ARGI1(rc)  "# arg\n"  3
 stmt: ARGU1(rc)  "# arg\n"  3
 stmt: ARGP1(rc)  "# arg\n"  3
-stmt: ASGNB(reg,INDIRB(reg))  "\t; Todo: copy %a words\n"
+stmt: ASGNB(reg,INDIRB(reg)) "# asgnb\n" 10
 memf: INDIRF1(addr)         "[%0]"
 memf: INDIRF1(addr)         "[%0]"
 memf: CVFF1(INDIRF1(addr))  "[%0]"
@@ -519,8 +519,8 @@ static void target(Node p) {
         break;
         
     case ASGN+B:
-        rtarget(p, 0, intreg[R_T1]); // Where to store destination address
-        rtarget(p->kids[1], 0, intreg[R_T0]); // Where to store source address
+        //rtarget(p, 0, intreg[R_T1]); // Where to store destination address
+        //rtarget(p->kids[1], 0, intreg[R_T0]); // Where to store source address
         break;
         
     case CVF+I:
@@ -558,9 +558,9 @@ static void clobber(Node p) {
     nstack = ckstack(p, nstack);
     switch (specific(p->op)) {        
     case ASGN+B:
-        // Which regs to free
-        // Todo: if block copy requires more regs, spill them here
-        spill((1<<R_T0)|(1<<R_T1), IREG, p);
+        // t0 is used as the temporary location for copied data.
+        // If block copy requires more regs, spill them here.
+        spill((1<<R_T0), IREG, p);
         break;
             
     case CALL+F:
@@ -641,6 +641,24 @@ static void emit2(Node p) {
             print("\n");
         }
     }
+    else if (op == ASGN+B) {
+        assert(p->syms[0]);
+        assert(p->x.kids[0]);
+        assert(p->x.kids[1]);
+        
+        int size = p->syms[0]->u.c.v.i;
+        char *dst_reg = p->x.kids[0]->syms[RX]->x.name;
+        char *src_reg = p->x.kids[1]->syms[RX]->x.name;
+        
+        assert(size > 0);
+        // The first iteration is different (1 cycle faster)
+        print("\tmov t0, [%s]\n", src_reg);
+        print("\tmov [%s], t0\n", dst_reg);
+        for (int i = 1; i < size; i++) {
+            print("\tmov t0, [%s+%d]\n", src_reg, i);
+            print("\tmov [%s+%d], t0\n", dst_reg, i);
+        }
+    }
 }
 
 static Symbol argreg(int offset) {
@@ -707,7 +725,8 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
         }
         // No calls (that could overwrite the argument) are performed: leave argument in place.
         // (Except if the address of the variable is needed, or if a return value will be stored in a0)
-        else if (n == 0 && !isstruct(q->type) && !p->addressed && !(i == 0 && f->type->type->op != VOID)) {
+        else if (n == 0 && !p->addressed && !(i == 0 && f->type->type->op != VOID && !isstruct(f->type->type))) {
+            assert(!isstruct(q->type)); // Structs will always be passed as pointers
             p->sclass = q->sclass = REGISTER;
             askregvar(p, r);
             assert(p->x.regnode && p->x.regnode->vbl == p);

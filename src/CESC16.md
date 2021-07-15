@@ -284,9 +284,9 @@ reg: RSHU1(reg,reg)   "\tcall var_srl\n"  20
 reg: MULI1(reg,reg)   "\tcall mul\n"  100
 reg: MULU1(reg,reg)   "\tcall mul\n"  100
 reg: DIVU1(reg,reg)   "\tcall divu\n" 100
-reg: MODU1(reg,reg)   "\tcall divu\n" 100
+reg: MODU1(reg,reg)   "\tcall modu\n" 100
 reg: DIVI1(reg,reg)   "\tcall div\n"  100
-reg: MODI1(reg,reg)   "\tcall div\n"  100
+reg: MODI1(reg,reg)   "\tcall mod\n"  100
 reg: CVPU1(reg)       "\tmov %c, %0\n"  move(a)
 reg: CVUP1(reg)       "\tmov %c, %0\n"  move(a)
 reg: CVII1(INDIRI1(addr))  "\tmov %c, [%0]\n"  3
@@ -303,7 +303,6 @@ stmt: ARGI1(rc)  "# arg\n"  3
 stmt: ARGU1(rc)  "# arg\n"  3
 stmt: ARGP1(rc)  "# arg\n"  3
 stmt: ASGNB(reg,INDIRB(reg))  "\t; Todo: copy %a words\n"
-stmt: ARGB(INDIRB(reg))  "# ARGB\n"
 memf: INDIRF1(addr)         "[%0]"
 memf: INDIRF1(addr)         "[%0]"
 memf: CVFF1(INDIRF1(addr))  "[%0]"
@@ -409,6 +408,8 @@ static Symbol rmap(int opk) {
     case B: case P: case I: case U:
         return intregw;            
     case F:
+        error("Floats are not supported\n", 0);
+        exit(EXIT_FAILURE);
         return fltregw;
     default:
         return 0;
@@ -495,16 +496,10 @@ static Node find_CALL(Node p, int *offset) {
 static void target(Node p) {
     assert(p);
     switch (specific(p->op)) {
-    case MUL+I: case MUL+U: case DIV+I: case DIV+U:
+    case MUL+I: case MUL+U: case DIV+I: case DIV+U: case MOD+I: case MOD+U:
         setreg(p, intreg[R_A0]);        // Result location
         rtarget(p, 0, intreg[R_A0]);    // Where to store arg
         rtarget(p, 1, intreg[R_A1]);    // Where to store arg
-        break;
-    
-    case MOD+I: case MOD+U:
-        setreg(p, intreg[R_A0]);     // Result location
-        rtarget(p, 0, intreg[R_A0]); // Where to store arg
-        rtarget(p, 1, intreg[R_A1]); // Where to store arg
         break;
     
     case LSH+I: case LSH+U: case RSH+I: case RSH+U:
@@ -526,10 +521,6 @@ static void target(Node p) {
     case ASGN+B:
         rtarget(p, 0, intreg[R_T1]); // Where to store destination address
         rtarget(p->kids[1], 0, intreg[R_T0]); // Where to store source address
-        break;
-        
-    case ARG+B:
-        rtarget(p->kids[0], 0, intreg[R_T0]); // Where to store source address
         break;
         
     case CVF+I:
@@ -566,7 +557,7 @@ static void clobber(Node p) {
     assert(p);
     nstack = ckstack(p, nstack);
     switch (specific(p->op)) {        
-    case ASGN+B: case ARG+B:
+    case ASGN+B:
         // Which regs to free
         // Todo: if block copy requires more regs, spill them here
         spill((1<<R_T0)|(1<<R_T1), IREG, p);
@@ -611,11 +602,6 @@ static void emit2(Node p) {
         assert(opsize(p->op) <= opsize(p->x.kids[0]->op));
         if (dst != src)
             print("\tmov %s, %s\n", dst, src);
-    }
-    else if (op == ARG+B) {
-        int struct_size = p->syms[0]->u.c.v.i;
-        print("\tsub sp, sp, %d\n\tmov t1, sp\n", struct_size);
-        print("\t; Todo: copy %d words. Source at t0, destination at t1\n", struct_size);
     }
     else if (op == CALL+I || op == CALL+U  || op == CALL+P || op == CALL+V) {
         int is_variadic = variadic(p->kids[0]->syms[0]->type);
@@ -722,7 +708,6 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
         // No calls (that could overwrite the argument) are performed: leave argument in place.
         // (Except if the address of the variable is needed, or if a return value will be stored in a0)
         else if (n == 0 && !isstruct(q->type) && !p->addressed && !(i == 0 && f->type->type->op != VOID)) {
-            // Note that this is only possible if 
             p->sclass = q->sclass = REGISTER;
             askregvar(p, r);
             assert(p->x.regnode && p->x.regnode->vbl == p);

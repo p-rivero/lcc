@@ -769,9 +769,9 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
                 int outn = out->x.regnode->number;
                 print("\tmov %s, %s\n", regnames[outn], regnames[rn]);
             }
-            else {
-                assert(in->type->size == 1);
-                print("\tmov [bp+%d], %s\n", in->x.offset, r->name);
+            else if (!is_variadic) {
+                assert(out->type->size == 1);
+                print("\tmov [bp+%d], %s\n", out->x.offset, r->name);
             }
         }
     }

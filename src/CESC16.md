@@ -36,9 +36,9 @@ static void progend(void);
 static void segment(int);
 static void space(int);
 static void target(Node);
-extern int ckstack(Node, int);
-extern int memop(Node);
-extern int sametree(Node, Node);
+static int ckstack(Node, int);
+static int memop(Node);
+static int sametree(Node, Node);
 static Symbol argreg(int);
 static Symbol intreg[32];
 static Symbol fltreg[32];
@@ -430,6 +430,37 @@ static void progend(void) {
 
 }
 
+#define isfp(p) (optype((p)->op)==F)
+int ckstack(Node p, int n) {
+    int i;
+    for (i = 0; i < NELEMS(p->x.kids) && p->x.kids[i]; i++)
+        if (isfp(p->x.kids[i]))
+            n--;
+    if (isfp(p) && p->count > 0)
+        n++;
+    if (n > 8)
+        error("expression too complicated\n");
+    debug(fprint(stderr, "(ckstack(%x)=%d)\n", p, n));
+    assert(n >= 0);
+    return n;
+}
+int memop(Node p) {
+    assert(p);
+    assert(generic(p->op) == ASGN);
+    assert(p->kids[0]);
+    assert(p->kids[1]);
+    if (generic(p->kids[1]->kids[0]->op) == INDIR && sametree(p->kids[0], p->kids[1]->kids[0]->kids[0]))
+        return 3;
+    else
+        return LBURG_MAX;
+}
+int sametree(Node p, Node q) {
+    if (p == NULL && q == NULL)
+        return 1;
+    if (p && q && p->op == q->op && p->syms[0] == q->syms[0])
+        return (sametree(p->kids[0], q->kids[0]) && sametree(p->kids[1], q->kids[1]));
+}
+
 
 // Given an ARG node, find its corresponding CALL node
 static Node find_CALL(Node p, int *offset) {
@@ -566,7 +597,6 @@ static void clobber(Node p) {
 }
 
 
-#define isfp(p) (optype((p)->op)==F)
 #define nodeC(p) (intreg[getregnum(p)]->x.name)
 #define node0(p) (intreg[getregnum(p->x.kids[0])]->x.name)
 #define node1(p) (intreg[getregnum(p->x.kids[1])]->x.name)
@@ -863,7 +893,7 @@ static void export(Symbol p) {
 
 static void import(Symbol p) {
     if (p->ref > 0) {
-        print("; extern %s\n", p->x.name);
+        // print("; extern %s\n", p->x.name);
     }
 }
 

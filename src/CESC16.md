@@ -203,6 +203,7 @@ con: CNSTF1  "%a"
 con: CNSTI1  "%a"
 con: CNSTP1  "%a"
 con: CNSTU1  "%a"
+con4: CNSTI1  "%a"  range(a, 0, 15)
 
 stmt: reg  ""
 acon: ADDRGP1  "%a"
@@ -257,21 +258,25 @@ reg: BANDU1(reg,mrc) "\tand %c, %0, %1\n"  3
 reg: BORU1(reg,mrc)  "\tor %c, %0, %1\n"   3
 reg: BXORU1(reg,mrc) "\txor %c, %0, %1\n"  3
 
-stmt: ASGNI1(addr,ADDI1(mem,reg))   "\tadd %1, %2\n"  memop(a)
-stmt: ASGNI1(addr,SUBI1(mem,reg))   "\tsub %1, %2\n"  memop(a)
-stmt: ASGNU1(addr,ADDU1(mem,reg))   "\tadd %1, %2\n"  memop(a)
-stmt: ASGNU1(addr,SUBU1(mem,reg))   "\tsub %1, %2\n"  memop(a)
-stmt: ASGNI1(addr,BANDI1(mem,reg))  "\tand %1, %2\n"  memop(a)
-stmt: ASGNI1(addr,BORI1(mem,reg))   "\tor %1, %2\n"   memop(a)
-stmt: ASGNI1(addr,BXORI1(mem,reg))  "\txor %1, %2\n"  memop(a)
-stmt: ASGNU1(addr,BANDU1(mem,reg))  "\tand %1, %2\n"  memop(a)
-stmt: ASGNU1(addr,BORU1(mem,reg))   "\tor %1, %2\n"   memop(a)
-stmt: ASGNU1(addr,BXORU1(mem,reg))  "\txor %1, %2\n"  memop(a)
+rc4: reg "%0"
+rc4: con4 "%0"
+stmt: ASGNI1(addr,rc4)  "\tmov [%0], %1\n"  3
+stmt: ASGNU1(addr,rc4)  "\tmov [%0], %1\n"  3
+stmt: ASGNP1(addr,rc4)  "\tmov [%0], %1\n"  3
+stmt: ASGNI1(addr,ADDI1(mem,rc4))   "\tadd %1, %2\n"  memop(a)
+stmt: ASGNI1(addr,SUBI1(mem,rc4))   "\tsub %1, %2\n"  memop(a)
+stmt: ASGNU1(addr,ADDU1(mem,rc4))   "\tadd %1, %2\n"  memop(a)
+stmt: ASGNU1(addr,SUBU1(mem,rc4))   "\tsub %1, %2\n"  memop(a)
+stmt: ASGNI1(addr,BANDI1(mem,rc4))  "\tand %1, %2\n"  memop(a)
+stmt: ASGNI1(addr,BORI1(mem,rc4))   "\tor %1, %2\n"   memop(a)
+stmt: ASGNI1(addr,BXORI1(mem,rc4))  "\txor %1, %2\n"  memop(a)
+stmt: ASGNU1(addr,BANDU1(mem,rc4))  "\tand %1, %2\n"  memop(a)
+stmt: ASGNU1(addr,BORU1(mem,rc4))   "\tor %1, %2\n"   memop(a)
+stmt: ASGNU1(addr,BXORU1(mem,rc4))  "\txor %1, %2\n"  memop(a)
 reg: BCOMI1(reg)  "\tnot %c, %0\n"  3
 reg: BCOMU1(reg)  "\tnot %c, %0\n"  3
 reg: NEGI1(reg)   "\tsub %c, zero, %0\n"  3
 
-con4: CNSTI1  "%a"  range(a, 0, 15)
 reg: LSHI1(reg,con4)  "\tsll %c, %0, %1\n"  2
 reg: LSHU1(reg,con4)  "\tsll %c, %0, %1\n"  2
 reg: RSHI1(reg,con4)  "\tsra %c, %0, %1\n"  2
@@ -296,9 +301,6 @@ reg: CVIU1(reg)      "\tmov %c, %0\n"  move(a)
 reg: CVUI1(reg)      "\tmov %c, %0\n"  move(a)
 reg: CVUU1(reg)      "\tmov %c, %0\n"  move(a)
 
-stmt: ASGNI1(addr,reg)  "\tmov [%0], %1\n"  3
-stmt: ASGNU1(addr,reg)  "\tmov [%0], %1\n"  3
-stmt: ASGNP1(addr,reg)  "\tmov [%0], %1\n"  3
 stmt: ARGI1(rc)  "# arg\n"  3
 stmt: ARGU1(rc)  "# arg\n"  3
 stmt: ARGP1(rc)  "# arg\n"  3

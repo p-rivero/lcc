@@ -1,7 +1,5 @@
 # LCC Port for the CESC16 Architecture
 
-**[Work in progress]**
-
 ## Building the compiler
 1. Choose the destination directory for the binaries, and add it to the your console's rc file (`.bashrc` or equivalent):
     - Add the following line to your file: `export LCCDIR=~/lcc`. Then restart the terminal.
@@ -17,7 +15,9 @@
 - Errors when compiling `gram.c`: Make sure it's not been automatically overwritten. Download `lburg/gram.c` again from GitHub if needed.
 
 ## Using the compiler
-*TODO*
+Once the alias has been created, lcc can be executed just by typing `lcc`. Using `lcc` is similar to using `gcc`, and you can learn about the supported options by executing `lcc` without arguments.
+
+It should be noted that, on the CESC16 architecture, all data types (char, int, ...) are exactly the same size (16 bits).
 
 # Original README from the LCC repository
 ```

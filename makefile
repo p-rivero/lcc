@@ -6,7 +6,7 @@ CC=cc
 CFLAGS=-g
 LDFLAGS=-g
 LD=$(CC)
-AR=ar ruv
+AR=ar r
 RANLIB=ranlib
 DIFF=diff
 RM=rm -f
@@ -109,7 +109,7 @@ $Bmips$O:	$Bmips.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bmips.c
 $Bsparc$O:	$Bsparc.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bsparc.c
 $Bx86$O:	$Bx86.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86.c
 $Bx86linux$O:	$Bx86linux.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86linux.c
-$BCESC16$O:	$BCESC16.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $BCESC16.c
+$BCESC16$O:	$BCESC16_md.c src/CESC16.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $BCESC16_md.c
 
 $Bdagcheck.c:	$Blburg$E src/dagcheck.md; $Blburg src/dagcheck.md $@
 $Balpha.c:	$Blburg$E src/alpha.md;    $Blburg src/alpha.md    $@
@@ -117,7 +117,7 @@ $Bmips.c:	$Blburg$E src/mips.md;     $Blburg src/mips.md     $@
 $Bsparc.c:	$Blburg$E src/sparc.md;    $Blburg src/sparc.md    $@
 $Bx86.c:	$Blburg$E src/x86.md;      $Blburg src/x86.md      $@
 $Bx86linux.c:	$Blburg$E src/x86linux.md; $Blburg src/x86linux.md $@
-$BCESC16.c:	$Blburg$E src/CESC16.md;   $Blburg src/CESC16.md   $@
+$BCESC16_md.c:	$Blburg$E src/CESC16.md;   $Blburg src/CESC16.md $@
 
 $Bbprint$E:	$Bbprint$O;		$(LD) $(LDFLAGS) -o $@ $Bbprint$O 
 $Bops$E:	$Bops$O;		$(LD) $(LDFLAGS) -o $@ $Bops$O 
@@ -224,7 +224,7 @@ testclean:
 
 clean::		testclean
 		$(RM) $B*$O
-		$(RM) $Bdagcheck.c $Balpha.c $Bmips.c $Bx86.c $Bsparc.c $Bx86linux.c $BCESC16.c
+		$(RM) $Bdagcheck.c $Balpha.c $Bmips.c $Bx86.c $Bsparc.c $Bx86linux.c $BCESC16_md.c
 		$(RM) $Brcc1$E $Brcc1$E $B1rcc$E $B2rcc$E
 		$(RM) $B*.ilk
 
@@ -267,7 +267,7 @@ RCCSRCS=src/alloc.c \
 	$Bsparc.c \
 	$Bx86linux.c \
 	$Bx86.c  \
-	$BCESC16.c
+	$BCESC16_md.c
 
 C=$Blcc -A -d0.6 -Wo-lccdir=$(BUILDDIR) -Isrc -I$(BUILDDIR)
 triple:	$B2rcc$E

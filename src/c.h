@@ -1,3 +1,6 @@
+#ifndef C_DOT_H
+#define C_DOT_H
+
 /* $Id$ */
 #include <assert.h>
 #include <stdarg.h>
@@ -601,3 +604,5 @@ extern void rmtypes(int);
 extern int ttob(Type);
 extern int variadic(Type);
 
+// end #ifndef C_DOT_H
+#endif

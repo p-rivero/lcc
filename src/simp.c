@@ -204,6 +204,43 @@ int intexpr(int tok, int n) {
 	needconst--;
 	return n;
 }
+
+static int bitcount(unsigned mask) {
+	unsigned i, n = 0;
+	for (i = 1; i; i <<= 1) if (mask&i) n++;
+	return n;
+}
+static Tree constmul(Type ty, Tree var, int n) {
+	int bit = 0;
+	int lastbit = 0;
+	// Initialize at 0 and accumulate the result
+	Tree result = cnsttree(ty, (long)0);
+	/* Storing the variable where the last shift was performed allows shifting that
+	   variable (instead of the original var). This results on smaller shamt, which
+	   is faster on some architectures */
+	Tree shifted_var;
+	while (n != 0) {
+		// Test the bits of n, from the LSB to the MSB
+		if (n & 1) {
+			if (lastbit == 0) {
+				// First shift: use var
+				shifted_var = simplify(LSH, ty, var, cnsttree(inttype, (long)bit));
+			}
+			else {
+				// Optimization: use the temp register where previous shift was performed
+				int shamt = bit - lastbit;
+				shifted_var = simplify(LSH, ty, shifted_var, cnsttree(inttype, (long)shamt));
+			}
+			result = simplify(ADD, ty, result, shifted_var);
+			lastbit = bit;
+		}
+		n >>= 1;
+		bit++;
+	}
+	return result;
+}
+
+
 Tree simplify(int op, Type ty, Tree l, Tree r) {
 	int n;
 	Tree p;
@@ -284,11 +321,13 @@ Tree simplify(int op, Type ty, Tree l, Tree r) {
 			break;
 
 		case MUL+U:
-			commute(l,r);
-			if (l->op == CNST+U && (n = ispow2(l->u.v.u)) != 0)
-				return simplify(LSH, ty, r, cnsttree(inttype, (long)n));
 			foldcnst(U,u,*);
-			identity(r,l,U,u,1);
+			commute(l,r);
+			if (l->op == CNST+U && bitcount(l->u.v.u) <= MAX_CONSTMUL)
+				/* Decompose constant in MAX_CONSTMUL shifts or less 
+				   (this also handles multiplying by 0 and by powers of 2) */
+				return constmul(ty, r, l->u.v.u);
+			identity(l,r,U,u,1);
 			break;
 		case NE+I:
 			cfoldcnst(I,i,!=);
@@ -496,8 +535,8 @@ Tree simplify(int op, Type ty, Tree l, Tree r) {
 			commute(l,r);
 			break;
 		case MUL+I:
-			commute(l,r);
 			xfoldcnst(I,i,*,muli);
+			commute(l,r);
 			if (l->op == CNST+I && r->op == ADD+I && r->kids[1]->op == CNST+I)
 				/* c1*(x + c2) => c1*x + c1*c2 */
 				return simplify(ADD, ty, simplify(MUL, ty, l, r->kids[0]),
@@ -506,10 +545,12 @@ Tree simplify(int op, Type ty, Tree l, Tree r) {
 				/* c1*(x - c2) => c1*x - c1*c2 */
 				return simplify(SUB, ty, simplify(MUL, ty, l, r->kids[0]),
 					simplify(MUL, ty, l, r->kids[1]));
-			if (l->op == CNST+I && l->u.v.i > 0 && (n = ispow2(l->u.v.i)) != 0)
-				/* 2^n * r => r<<n */
-				return simplify(LSH, ty, r, cnsttree(inttype, (long)n));
-			identity(r,l,I,i,1);
+			if (l->op == CNST+I  && l->u.v.i >= 0 && bitcount(l->u.v.i) <= MAX_CONSTMUL)
+				/* Decompose constant in MAX_CONSTMUL shifts or less 
+				   (this also handles multiplying by 0 and by powers of 2) */
+				return constmul(ty, r, l->u.v.i);
+			
+			identity(l,r,I,i,1);
 			break;
 		case NE+F:
 			cfoldcnst(F,d,!=);

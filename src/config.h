@@ -102,3 +102,6 @@ extern unsigned         emitbin(Node, int);
 #else
 #define debug(x) (void)(dflag&&((x),0))
 #endif
+
+// Maximum bits that a constant can have in order to be split into LSH, instead of using a MUL
+#define MAX_CONSTMUL 4

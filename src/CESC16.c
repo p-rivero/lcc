@@ -1,12 +1,15 @@
 #include "c.h"
 
-enum { R_ZERO=0, R_SP=1, R_BP=2, R_T0=3, R_T1=4, R_T2=5, R_T3=6, R_A0=7, R_A1=8, R_A2=9, R_A3=10, R_S0=11, R_S1=12, R_S2=13, R_S3=14, R_S4=15};
-static char *regnames[] = {"zero", "sp", "bp", "t0", "t1", "t2", "t3", "a0", "a1", "a2", "a3", "s0", "s1", "s2", "s3", "s4"};
+enum { R_ZERO=0, R_SP=1, R_BP=2, R_T0=3, R_T1=4, R_T2=5, R_T3=6, R_A0=7, R_A1=8, R_A2=9, R_A3=10, R_S0=11, R_S1=12, R_S2=13, R_S3=14, R_S4=15, R_ret=16};
+// R_ret is a fake register with the same name as R_A0. This way lcc can overwrite a0 without complaining.
+static char *regnames[] = {"zero", "sp", "bp", "t0", "t1", "t2", "t3", "a0", "a1", "a2", "a3", "s0", "s1", "s2", "s3", "s4", "a0"};
+// Number of elements in the enum
+static const int REGFILE_SZ = R_ret + 1;
 
 static const int INTTMP = (1<<R_T0)|(1<<R_T1)|(1<<R_T2)|(1<<R_T3);
 static const int INTVAR = (1<<R_S0)|(1<<R_S1)|(1<<R_S2)|(1<<R_S3)|(1<<R_S4);
 static const int INTARG = (1<<R_A1)|(1<<R_A2)|(1<<R_A3);
-static const int INTRET = (1<<R_A0);
+static const int INTRET = (1<<R_ret);
 
 static const int ARGREG_AMOUNT = R_A3 - R_A0 + 1;
 
@@ -66,8 +69,10 @@ static void progbeg(int argc, char *argv[]) {
         swap = ((int)(u.i == 1)) != IR->little_endian;
     }
     parseflags(argc, argv);
+    
+    assert(sizeof(regnames)/sizeof(regnames[0]) == REGFILE_SZ);
     // Create register bank
-    for (i = 0; i < 16; i++)
+    for (i = 0; i < REGFILE_SZ; i++)
         intreg[i]  = mkreg(regnames[i], i, 1, IREG);
     
     for (i = 0; i < 8; i++)
@@ -214,7 +219,7 @@ static void target(Node p) {
         break;
         
     case RET+I: case RET+U: case RET+P:
-        rtarget(p, 0, intreg[R_A0]); // Where to store ret value
+        rtarget(p, 0, intreg[R_ret]); // Where to store ret value
         break;
         
     case ARG+I: case ARG+U: case ARG+P: {
@@ -389,6 +394,7 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     freemask[0] = freemask[1] = ~(unsigned)0;
     int arg_offset = 2; // Stack offset for fetching arguments. Skip stored bp and ret value
     offset = 0; // Stack offset for local variables. Increment in order to allocate a word.
+    int has_temps_or_args = 0; // 1 if the function needs to store bp
     
     for (i = 0; callee[i]; i++) {
         // Assign location for argument i
@@ -404,10 +410,11 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
         if (is_variadic || r == NULL) {
             p->sclass = q->sclass = AUTO;
             arg_offset += q->type->size; // Increment stack offset
+            has_temps_or_args = 1;
         }
         // No calls (that could overwrite the argument) are performed: leave argument in place.
         // (Except if the address of the variable is needed, or if a return value will be stored in a0)
-        else if (n == 0 && !p->addressed && !(i == 0 && f->type->type->op != VOID && !isstruct(f->type->type))) {
+        else if (n == 0 && !p->addressed /* && !(i == 0 && f->type->type->op != VOID && !isstruct(f->type->type)) */) {
             assert(!isstruct(q->type)); // Structs will always be passed as pointers
             p->sclass = q->sclass = REGISTER;
             askregvar(p, r);
@@ -426,6 +433,7 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
             offset++;   // Allocate 1 word in the stack
             p->x.offset = q->x.offset = -offset;    // Local variables have a negative index
             p->x.name = q->x.name = stringf("%d", p->x.offset);
+            has_temps_or_args = 1;
         }
     }
     
@@ -436,7 +444,7 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     
     framesize = maxoffset; // Don't round up the frame size
     usedmask[IREG] &= INTVAR; // Only save the safe registers
-    int has_temps_or_args = (framesize > 0 || i > 0);
+    if (framesize > 0) has_temps_or_args = 1;
     
     print("\n%s:\n", f->x.name);
     if (has_temps_or_args) {

@@ -13,6 +13,7 @@ static int memop(Node);
     - LOADU1=1254
     - LOADP1=1255
     - VREGP=711
+    - ASMV=616
 */
 %}
 %start stmt
@@ -140,6 +141,7 @@ static int memop(Node);
 %term JUMPV=584
 
 %term LABELV=600
+%term ASMV=616
 
 %term LOADB=233
 %term LOADI1=1253
@@ -291,6 +293,7 @@ comp:  mem_b    "%0"  1
 con0:  CNSTI1   "%a"  range(a, 0, 0)
 
 stmt: LABELV        "%a:\n"
+stmt: ASMV          "\t%a\n"
 stmt: JUMPV(addrj)  "\tjmp %0\n"  2
 stmt: EQI1(reg,comp)  "\tcmp %0, %1\n\tje %a\n"   5
 stmt: GEI1(reg,comp)  "\tcmp %0, %1\n\tjge %a\n"  5

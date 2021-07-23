@@ -188,6 +188,34 @@ void statement(int loop, Swtch swp, int lev) {
 		       } else
 		       	error("missing label in goto\n"); expect(';');
 					  break;
+	
+	case INLINEASM:
+		walk(NULL, 0, 0);
+		definept(NULL);
+		t = gettok();
+		expect('(');
+		if (t == SCON) {
+			// Copy the asm text from the temporary buffer (tsym->u.c.v.p) 
+			// to the FUNC arena (free memory after the function).
+			size_t len = strlen(tsym->u.c.v.p) + 1; // add null char
+			char *asm_code = allocate(len, FUNC);
+			memcpy(asm_code, tsym->u.c.v.p, len);
+			
+			t = gettok();
+			
+			Symbol p = install(token, &stmtlabs, 0, FUNC);
+			p->x.name = asm_code;
+			p->src = src;
+			use(p, src);
+			code(Gen)->u.forest = newnode(ASM+V, NULL, NULL, p);
+		}
+		else {
+			// _asm() only accepts a string constant
+			error("missing string constant in inline assembly\n");
+		}
+		expect(')');
+		expect(';');
+		break;
 
 	case ID:       if (getchr() == ':') {
 		       	stmtlabel();

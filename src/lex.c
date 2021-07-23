@@ -684,6 +684,13 @@ int gettok(void) {
 				cp = rcp + 9;
 				return FIRSTARG;
 			}
+			if (rcp[0] == 'a'
+			&&  rcp[1] == 's'
+			&&  rcp[2] == 'm'
+			&& !(map[rcp[3]]&(DIGIT|LETTER))) {
+				cp = rcp + 3;
+				return INLINEASM;
+			}
 			goto id;
 		default:
 			if ((map[cp[-1]]&BLANK) == 0)

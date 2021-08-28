@@ -100,6 +100,12 @@ static void dumptree(Node p) {
 		assert(p->syms[0] && p->syms[0]->x.name);
 		print("%s %s\n", opname(p->op), p->syms[0]->x.name);
 		return;
+	case ASM:
+		assert(!p->kids[0]);
+		assert(!p->kids[1]);
+		assert(p->syms[0] && p->syms[0]->x.name);
+		print("%s\n", p->syms[0]->x.name);
+		return;
 	case CVF: case CVI: case CVP: case CVU:
 		assert(p->kids[0]);
 		assert(!p->kids[1]);

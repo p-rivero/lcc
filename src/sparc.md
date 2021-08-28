@@ -309,6 +309,7 @@ static int cseg;
 %term JUMPV=584
 
 %term LABELV=600
+%term ASMV=616
 
 %term LOADB=233
 %term LOADF4=4321
@@ -491,6 +492,7 @@ addrg: ADDRGP4        "%a"
 stmt:  JUMPV(addrg)  "ba %0; nop\n"   2
 stmt:  JUMPV(addr)   "jmp %0; nop\n"  2
 stmt:  LABELV        "%a:\n"
+stmt:  ASMV "%a\n"
 stmt: EQI4(reg,rc)  "cmp %%%0,%1; be %a; nop\n"    3
 stmt: EQU4(reg,rc)  "cmp %%%0,%1; be %a; nop\n"    3
 stmt: GEI4(reg,rc)  "cmp %%%0,%1; bge %a; nop\n"   3

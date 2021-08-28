@@ -289,6 +289,7 @@ static char rcsid[] = "$Id$";
 %term JUMPV=584
 
 %term LABELV=600
+%term ASMV=616
 
 %term LOADB=233
 %term LOADF4=4321
@@ -581,6 +582,7 @@ addrj: reg      "*%0"  2
 addrj: mem4     "*%0"  2
 
 stmt: LABELV         "%a:\n"
+stmt: ASMV           "%a\n"
 stmt: JUMPV(addrj)   "jmp %0\n"  3
 stmt: EQI4(mem4,rc)  "cmpl %1,%0\nje %a\n"   5
 stmt: GEI4(mem4,rc)  "cmpl %1,%0\njge %a\n"  5

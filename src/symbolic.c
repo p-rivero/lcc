@@ -198,6 +198,9 @@ static void I(emit)(Node p){
 			BEGIN(code); print("%s", p->syms[0]->name); END;
 			END;
 			print(":");
+		} else if (p->op == ASM+V) {
+			assert(p->syms[0]);
+			BEGIN(code); print("Inline assembly: \"%s\"", p->syms[0]->x.name); END;
 		} else {
 			int i;
 			if (p->x.listed) {
@@ -306,7 +309,7 @@ static Node I(gen)(Node p) {
 			assert(IR->wants_dag || p->count == 0);
 			break;
 		case ARG:
-		case ASGN: case JUMP: case LABEL: case RET:
+		case ASGN: case JUMP: case LABEL: case ASM: case RET:
 		case EQ: case GE: case GT: case LE: case LT: case NE:
 			assert(p->count == 0);
 			break;

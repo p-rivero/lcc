@@ -40,6 +40,7 @@ typedef Node NODEPTR_TYPE;
 %term NEF=561 NEI=565 NEU=566
 %term JUMPV=584
 %term LABELV=600
+%term ASMV=616
 %%
 stmt: INDIRB(P) ""
 stmt: INDIRF(P) ""
@@ -160,6 +161,7 @@ V: NEI(I,I) ""
 V: NEU(U,U) ""
 V: JUMPV(P) ""
 V: LABELV ""
+V: ASMV ""
 %%
 
 static void reduce(NODEPTR_TYPE p, int goalnt) {

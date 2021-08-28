@@ -305,6 +305,7 @@ static char *currentfile;
 %term JUMPV=584
 
 %term LABELV=600
+%term ASMV=616
 
 %term LOADB=233
 %term LOADF4=4321
@@ -545,6 +546,7 @@ reg: CVFI4(reg)  "cvttqc $f%0,$f1\ncvtql $f1,$f1\nsts $f1,-56+%F($sp)\nldl $%c,-
 reg: CVFI8(reg)  "cvttqc $f%0,$f1\nstt $f1,-56+%F($sp)\nldq $%c,-56+%F($sp)\n"  3
 
 stmt: LABELV  "%a:\n"
+stmt: ASMV    "%a\n"
 
 stmt: JUMPV(acon)  "br %0\n"   1
 stmt: JUMPV(reg)   "jmp ($%0)\n"  1

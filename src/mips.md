@@ -307,6 +307,7 @@ static int cseg;
 %term JUMPV=584
 
 %term LABELV=600
+%term ASMV=616
 
 %term LOADB=233
 %term LOADF4=4321
@@ -472,6 +473,7 @@ reg: CVIF8(reg)  "mtc1 $%0,$f%c; cvt.d.w $f%c,$f%c\n"  2
 reg: CVFI4(reg)  "trunc.w.s $f2,$f%0,$%c; mfc1 $%c,$f2\n"  (a->syms[0]->u.c.v.i==4?2:LBURG_MAX)
 reg: CVFI4(reg)  "trunc.w.d $f2,$f%0,$%c; mfc1 $%c,$f2\n"  (a->syms[0]->u.c.v.i==8?2:LBURG_MAX)
 stmt: LABELV  "%a:\n"
+stmt: ASMV    "%a\n"
 stmt: JUMPV(acon)  "b %0\n"   1
 stmt: JUMPV(reg)   ".cpadd $%0\nj $%0\n"  !pic
 stmt: JUMPV(reg)   "j $%0\n"  pic

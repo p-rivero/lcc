@@ -11,6 +11,7 @@ static List autos, registers;
 Symbol cfunc;		/* current function */
 Symbol retv;		/* return value location for structs */
 
+static void pre_checkref(Symbol, void *);
 static void checkref(Symbol, void *);
 static Symbol dclglobal(int, char *, Type, Coordinate *);
 static Symbol dcllocal(int, char *, Type, Coordinate *);
@@ -857,6 +858,7 @@ void compound(int loop, struct swtch *swp, int lev) {
 	while (kind[t] == IF || kind[t] == ID)
 		statement(loop, swp, lev);
 	walk(NULL, 0, 0);
+	foreach(identifiers, level, pre_checkref, NULL);
 	foreach(identifiers, level, checkref, NULL);
 	{
 		int i = nregs, j;
@@ -893,6 +895,16 @@ void compound(int loop, struct swtch *swp, int lev) {
 		expect('}');
 	}
 }
+static void pre_checkref(Symbol p, void *cl) {
+	if (p->scope >= PARAM && (isvolatile(p->type) || isfunc(p->type)))
+		p->addressed = 1;
+	
+	if (p->sclass == AUTO
+	&& (p->scope  == PARAM && regcount == 0 || p->scope  >= LOCAL)
+	&& isscalar(p->type) && IR->x.info_var) {
+		(*IR->x.info_var)(p->ref, p->addressed);
+	}
+}
 static void checkref(Symbol p, void *cl) {
 	if (p->scope >= PARAM
 	&& (isvolatile(p->type) || isfunc(p->type)))
@@ -909,9 +921,10 @@ static void checkref(Symbol p, void *cl) {
 				p->type, p->name);
 	}
 	if (p->sclass == AUTO
-	&& (p->scope  == PARAM && regcount == 0
-	 || p->scope  >= LOCAL)
-	&& !p->addressed && isscalar(p->type) && p->ref >= 3.0)
+	&& (p->scope  == PARAM && regcount == 0 || p->scope  >= LOCAL)
+	&& !p->addressed && isscalar(p->type)
+	// If var_register!=NULL, call it. Otherwise use 3.0 as default threshold
+	&& (IR->x.var_register ? (*IR->x.var_register)(p->ref) : p->ref >= 3.0))
 		p->sclass = REGISTER;
 	if (level == GLOBAL && p->sclass == STATIC && !p->defined
 	&& isfunc(p->type) && p->ref)

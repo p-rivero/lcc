@@ -12,6 +12,17 @@ static const int INTARG = (1<<R_A1)|(1<<R_A2)|(1<<R_A3);
 static const int INTRET = (1<<R_ret);
 
 static const int ARGREG_AMOUNT = R_A3 - R_A0 + 1;
+static const int SAFEREG_AMOUNT = R_S4 - R_S0 + 1;
+
+// Stats required for determining whether a variable must go on a register
+struct _reg_stats {
+    int total_amount;
+    int locals_amount;
+    int refs_amount;
+    char has_addressed;
+};
+struct _reg_stats reg_stats = {0, 0, 0, 0};
+
 
 
 static void address(Symbol, Symbol, long);
@@ -58,7 +69,6 @@ static char *_ntname[];
 
 static void progbeg(int argc, char *argv[]) {    
     int i;
-
     {
         union {
             char c;
@@ -85,8 +95,7 @@ static void progbeg(int argc, char *argv[]) {
     tmask[FREG] = 0xff;
     vmask[FREG] = 0;
     
-    // Don't start at any specific bank
-    cseg = 0;
+    cseg = 0; // Don't start at any specific bank
 }
 
 
@@ -378,11 +387,9 @@ static void blkloop(int dreg, int doff, int sreg, int soff, int size, int tmps[]
 
 
 static void local(Symbol p) {
-    if (isfloat(p->type))
-        p->sclass = AUTO;
-        
-    if (askregvar(p, (*IR->x.rmap)(ttob(p->type))) == 0)
-        mkauto(p);
+    // Is the new local worth storing in a register?
+    if (!askregvar(p, rmap(ttob(p->type))))
+        mkauto(p);  // If not, allocate space in the stack
 }
 
 static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
@@ -497,6 +504,11 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     if (framesize > 0) print("\tmov sp, bp\n");
     if (has_temps_or_args) print("\tpop bp\n");
     print("\tret\n");
+    
+    reg_stats.total_amount = 0;
+    reg_stats.locals_amount = 0;
+    reg_stats.refs_amount = 0;
+    reg_stats.has_addressed = 0;
 }
 
 
@@ -604,6 +616,36 @@ static void space(int n) {
     print("#res %d\n", n);
 }
 
+// Gather info about the local variables of a function (called once per variable)
+static void info_var(float ref, int addressed) {
+    if (addressed) {
+        if (ref > 0.0) reg_stats.has_addressed = 1;
+    }
+    else {
+        reg_stats.total_amount++;
+        if (ref < 3.0) {
+            reg_stats.locals_amount++;
+            reg_stats.refs_amount += ref;
+        }
+    }
+}
+// Return 1 if the variable should be stored in a register (called once per variable)
+static int var_register(float ref) {
+    // Push/Pop of a safe register takes 6 cycles
+    // Each indexed reference takes 2 extra cycles
+    // Therefore, if a variable has 3 or more references it's ALWAYS worth it
+    if (ref >= 3.0) return 1;
+    
+    // Not all variables will be stored in registers. The cost of initializing
+    // the frame becomes 0. Therefore, all variables with less than 3 references
+    // will be stored in the frame.
+    if (reg_stats.total_amount > SAFEREG_AMOUNT || reg_stats.has_addressed) return 0;
+    
+    // Cycles for storing ALL remaining variables in registers: 6*locals_amount
+    // Cycles for storing ALL in frame: 2*refs_amount (+ cost of initializing frame = 13)
+    return (6 * reg_stats.locals_amount < (2 * reg_stats.refs_amount + 13));
+}
+
 
 Interface CESC16IR = {
     // Not byte-oriented: integer size is 1 word, each word is 16 bits wide
@@ -662,6 +704,8 @@ Interface CESC16IR = {
         doarg,
         target,
         clobber,
+        info_var,
+        var_register,
 }
 };
 static char rcsid[] = "$Id$";

@@ -1082,5 +1082,7 @@ Interface x86linuxIR = {
             0, /* doarg */
             target,
             clobber,
+            0,
+            0,
         }
 };

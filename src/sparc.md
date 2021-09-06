@@ -1117,7 +1117,8 @@ Interface sparcIR = {
                 doarg,
                 target,
                 clobber,
-
+                0,
+                0,
         }
 };
 
@@ -1175,7 +1176,8 @@ Interface solarisIR = {
                 doarg,
                 target,
                 clobber,
-
+                0,
+                0,
         }
 };
 static char rcsid[] = "$Id$";

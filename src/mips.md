@@ -1062,7 +1062,8 @@ Interface mipsebIR = {
                 doarg,
                 target,
                 clobber,
-
+                0,
+                0,
         }
 }, mipselIR = {
         8,        /* byte size (in bits) */
@@ -1118,7 +1119,8 @@ Interface mipsebIR = {
                 doarg,
                 target,
                 clobber,
-
+                0,
+                0,
         }
 };
 static char rcsid[] = "$Id$";

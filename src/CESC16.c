@@ -271,10 +271,20 @@ static void clobber(Node p) {
         spill(INTTMP|INTRET, IREG, p);
         break;
         
-    case MUL+I: case MUL+U: case DIV+I: case DIV+U: case MOD+I: case MOD+U:
+    case MUL+I: case MUL+U:
         spill(INTARG, IREG, p);
         break;
-    
+        
+    case DIV+U: case MOD+U:
+        // Unsigned div overwrites t0
+        spill(INTARG|(1<<R_T0), IREG, p);
+        break;
+        
+    case DIV+I: case MOD+I:
+        // Signed div overwrites t0, t1 and t2
+        spill(INTARG|(1<<R_T0)|(1<<R_T1)|(1<<R_T2), IREG, p);
+        break;
+        
     case LSH+I: case LSH+U: case RSH+I: case RSH+U:
         assert(p->kids[1]);
         if (generic(p->kids[1]->op) != CNST)

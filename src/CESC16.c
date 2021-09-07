@@ -15,13 +15,10 @@ static const int ARGREG_AMOUNT = R_A3 - R_A0 + 1;
 static const int SAFEREG_AMOUNT = R_S4 - R_S0 + 1;
 
 // Stats required for determining whether a variable must go on a register
-struct _reg_stats {
-    int total_amount;
-    int locals_amount;
-    int refs_amount;
-    char has_addressed;
-};
-struct _reg_stats reg_stats = {0, 0, 0, 0};
+static int total_amount = 0;
+static int locals_amount = 0;
+static int refs_amount = 0;
+static char has_addressed = 0;
 
 
 
@@ -46,14 +43,12 @@ static void progend(void);
 static void segment(int);
 static void space(int);
 static void target(Node);
-static int ckstack(Node, int);
 static int memop(Node);
 static int sametree(Node, Node);
 static Symbol argreg(int);
-static Symbol intreg[32];
-static Symbol fltreg[32];
 
-static Symbol intregw, fltregw;
+static Symbol intreg[32];
+static Symbol intregw;
 
 static int cseg;
 
@@ -85,15 +80,10 @@ static void progbeg(int argc, char *argv[]) {
     for (i = 0; i < REGFILE_SZ; i++)
         intreg[i]  = mkreg(regnames[i], i, 1, IREG);
     
-    for (i = 0; i < 8; i++)
-        fltreg[i] = mkreg("%d", i, 0, FREG);
     intregw = mkwildcard(intreg);
-    fltregw = mkwildcard(fltreg);
     
     tmask[IREG] = INTTMP;
     vmask[IREG] = INTVAR;
-    tmask[FREG] = 0xff;
-    vmask[FREG] = 0;
     
     cseg = 0; // Don't start at any specific bank
 }
@@ -106,7 +96,6 @@ static Symbol rmap(int opk) {
     case F:
         error("Floats are not supported\n", 0);
         exit(EXIT_FAILURE);
-        return fltregw;
     default:
         return 0;
     }
@@ -127,20 +116,6 @@ static void progend(void) {
 
 }
 
-#define isfp(p) (optype((p)->op)==F)
-int ckstack(Node p, int n) {
-    int i;
-    for (i = 0; i < NELEMS(p->x.kids) && p->x.kids[i]; i++)
-        if (isfp(p->x.kids[i]))
-            n--;
-    if (isfp(p) && p->count > 0)
-        n++;
-    if (n > 8)
-        error("expression too complicated\n");
-    debug(fprint(stderr, "(ckstack(%x)=%d)\n", p, n));
-    assert(n >= 0);
-    return n;
-}
 int memop(Node p) {
     assert(p);
     assert(generic(p->op) == ASGN);
@@ -248,19 +223,12 @@ static void target(Node p) {
 }
 
 static void clobber(Node p) {
-    static int nstack = 0;
-
     assert(p);
-    nstack = ckstack(p, nstack);
     switch (specific(p->op)) {        
     case ASGN+B:
         // t0 is used as the temporary location for copied data.
         // If block copy requires more regs, spill them here.
         spill((1<<R_T0), IREG, p);
-        break;
-            
-    case CALL+F:
-        spill(INTTMP|INTRET, IREG, p);
         break;
         
     case CALL+I: case CALL+U: case CALL+P:
@@ -515,10 +483,10 @@ static void function(Symbol f, Symbol caller[], Symbol callee[], int n) {
     if (has_temps_or_args) print("\tpop bp\n");
     print("\tret\n");
     
-    reg_stats.total_amount = 0;
-    reg_stats.locals_amount = 0;
-    reg_stats.refs_amount = 0;
-    reg_stats.has_addressed = 0;
+    total_amount = 0;
+    locals_amount = 0;
+    refs_amount = 0;
+    has_addressed = 0;
 }
 
 
@@ -554,16 +522,10 @@ static void address(Symbol q, Symbol p, long n) {
 
 
 static void defconst(int suffix, int size, Value v) {
-    if (suffix == I && size == 1)
-        print("#d16 %d\n",   v.u);
-    else if (suffix == U && size == 1)
-        print("#d16 0x%x\n", (unsigned)((unsigned char)v.u));
-    else if (suffix == P && size == 1)
-        print("#d16 0x%x\n", (unsigned long long)v.p);
-    else if (suffix == F && size == 1) {
-        float f = v.d;
-        print("#d16 0x%x\n", *(unsigned *)&f);
-    }
+    assert(size == 1);
+    if (suffix == I) print("#d16 %d\n", v.i);
+    else if (suffix == U) print("#d16 %d\n", v.u);
+    else if (suffix == P) print("#d16 0x%x\n", v.p);
     else assert(0);
 }
 
@@ -629,13 +591,13 @@ static void space(int n) {
 // Gather info about the local variables of a function (called once per variable)
 static void info_var(float ref, int addressed) {
     if (addressed) {
-        if (ref > 0.0) reg_stats.has_addressed = 1;
+        if (ref > 0.0) has_addressed = 1;
     }
     else {
-        reg_stats.total_amount++;
+        total_amount++;
         if (ref < 3.0) {
-            reg_stats.locals_amount++;
-            reg_stats.refs_amount += ref;
+            locals_amount++;
+            refs_amount += ref;
         }
     }
 }
@@ -649,11 +611,11 @@ static int var_register(float ref) {
     // Not all variables will be stored in registers. The cost of initializing
     // the frame becomes 0. Therefore, all variables with less than 3 references
     // will be stored in the frame.
-    if (reg_stats.total_amount > SAFEREG_AMOUNT || reg_stats.has_addressed) return 0;
+    if (total_amount > SAFEREG_AMOUNT || has_addressed) return 0;
     
     // Cycles for storing ALL remaining variables in registers: 6*locals_amount
     // Cycles for storing ALL in frame: 2*refs_amount (+ cost of initializing frame = 13)
-    return (6 * reg_stats.locals_amount < (2 * reg_stats.refs_amount + 13));
+    return (6 * locals_amount < (2 * refs_amount + 13));
 }
 
 

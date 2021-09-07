@@ -6,7 +6,7 @@
     - I recommend `~/lcc`, but other directories can also be used, as long as they don't require root permissions.
 2. Create the destination directory: `mkdir $LCCDIR`.
 3. Make sure that all `.md` files use LF line termination instead of CLRF. Git will sometimes convert all line endings to CLRF automatically.
-4. Run `make all`. The compiler should finish with warnings but no errors.
+4. Run `make all`. The compiler should finish without warnings or errors.
 5. (Recommended) Create an alias (add to `.bashrc` or equivalent): `alias lcc="$LCCDIR/lcc"`.
 6. (Optional) Update the manfiles `sudo cp doc/*.1 /usr/local/man/man1` (you may need to `sudo mkdir /usr/local/man/man1` first).
 

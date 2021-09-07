@@ -159,6 +159,7 @@ typedef union YYSTYPE YYSTYPE;
 extern YYSTYPE yylval;
 
 int yyparse (void);
+int yylex(void);
 
 
 

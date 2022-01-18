@@ -8,11 +8,13 @@ static char rcsid[] = "$Id$";
 #define LCCDIR "/usr/local/lib/lcc/"
 #endif
 
+#define DEFAULT_BACKEND "CESC16"
+
 char *suffixes[] = { ".c", ".i", ".s", ".o", ".out", 0 };
 char inputs[256] = "";
 char *cpp[] = { "/usr/bin/cpp", "-U__GNUC__", /*"-U__STDC__",*/ "$1", "$2", "$3", 0 };
-char *include[] = {"-I/usr/include", 0 };
-char *com[] = {LCCDIR "rcc", "-target=CESC16", "$1", "$2", "$3", 0 };
+char *include[] = {"-I" LCCDIR "include/" DEFAULT_BACKEND, "-I/usr/include", 0 };
+char *com[] = {LCCDIR "rcc", "-target=" DEFAULT_BACKEND, "$1", "$2", "$3", 0 };
 char *as[] = { "/usr/bin/as", "-o", "$3", "$1", "$2", 0 }; // Todo: maybe customasm could be added here?
 char *ld[] = {	// Todo: remove
 	/*  0 */ "/usr/bin/ld", "-m", "elf_i386", "-dynamic-linker",
@@ -33,7 +35,7 @@ int option(char *arg) {
   	if (strncmp(arg, "-lccdir=", 8) == 0) {
 		if (strcmp(cpp[0], LCCDIR "gcc/cpp") == 0)
 			cpp[0] = concat(&arg[8], "/gcc/cpp");
-		// include[0] = concat("-I", concat(&arg[8], "/include"));
+		include[0] = concat("-I", concat(&arg[8], "/include/" DEFAULT_BACKEND));
 		// include[1] = concat("-I", concat(&arg[8], "/gcc/include"));
 		ld[9]  = concat(&arg[8], "/gcc/crtbegin.o");
 		ld[12] = concat("-L", &arg[8]);

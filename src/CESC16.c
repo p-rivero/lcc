@@ -164,6 +164,17 @@ static Node find_CALL(Node p, int *offset) {
     return funct;
 }
 
+static int funct_is_variadic(Node funct) {
+    if (funct->syms[1]) {
+        assert(funct->syms[1]->type->op == FUNCTION);
+        return variadic(funct->syms[1]->type);
+    }
+    else {
+        assert(funct->syms[0]->type->op == FUNCTION);
+        return variadic(funct->syms[0]->type);
+    }
+}
+
 static void target(Node p) {
     assert(p);
     switch (specific(p->op)) {
@@ -212,7 +223,7 @@ static void target(Node p) {
         Node funct = find_CALL(p, &offset);
         
         // Once the function node is reached, see if it's variadic
-        int is_variadic = variadic(funct->kids[0]->syms[0]->type);
+        int is_variadic = funct_is_variadic(funct);
         Symbol r = argreg(offset);
         
         // If this arg is passed in a register, store the data in that register
@@ -278,7 +289,7 @@ static void emit2(Node p) {
             print("\tmov %s, %s\n", dst, src);
     }
     else if (op == CALL+I || op == CALL+U  || op == CALL+P || op == CALL+V) {
-        int is_variadic = variadic(p->kids[0]->syms[0]->type);
+        int is_variadic = funct_is_variadic(p);
         int arg_sz = p->syms[0]->u.c.v.i;
         
         // Call the function
@@ -297,7 +308,7 @@ static void emit2(Node p) {
         Node funct = find_CALL(p, &offset);
         
         // Once the function node is reached, see if it's variadic
-        int is_variadic = variadic(funct->kids[0]->syms[0]->type);
+        int is_variadic = funct_is_variadic(funct);
         Symbol r = argreg(offset);
         
         // Arguments of a variadic function are always passed in the stack

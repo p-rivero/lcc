@@ -567,10 +567,10 @@ static void fields(Type ty) {
 			if (Aflag >= 1 && !hasproto(p->type))
 				warning("missing prototype\n");
 			if (t == ':') {
-				if (unqual(p->type) != inttype
-				&&  unqual(p->type) != unsignedtype) {
-					error("`%t' is an illegal bit-field type\n",
-						p->type);
+				Type pType = unqual(p->type);
+				if (isenum(pType)) pType = unqual(pType->type);
+				if (pType != inttype && pType != unsignedtype) {
+					error("`%t' is an illegal bit-field type\n", p->type);
 					p->type = inttype;
 				}
 				t = gettok();

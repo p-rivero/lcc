@@ -134,14 +134,14 @@ int sametree(Node p, Node q) {
 }
 
 
-// Given an ARG node, find its corresponding CALL node
+// Given an ARG node, find its corresponding CALL node and return the offset
 static Node find_CALL(Node p, int *offset) {
     assert(generic(p->op) == ARG);
     *offset = 0;
     Node funct = p;
     
     // p->link points at the next node. The root should be the called function 
-    while (1) {
+    while (generic(funct->op) != CALL) {
         // Reached the root
         if (funct->link == NULL) {
             break;
@@ -506,7 +506,8 @@ static void defsymbol(Symbol p) {
         p->x.name = stringf(".L%d", genlabel(1));
     }
     else if (p->generated) {
-        p->x.name = stringf(".L%s", p->name);
+        if (p->scope == GLOBAL || p->sclass == EXTERN) p->x.name = stringf("_GL%s", p->name);
+        else p->x.name = stringf(".L%s", p->name);
     }
     else if (p->scope == GLOBAL || p->sclass == EXTERN) {
         p->x.name = stringf("%s", p->name);
@@ -537,6 +538,10 @@ static void defconst(int suffix, int size, Value v) {
     if (suffix == I) print("#d16 %d\n", v.i);
     else if (suffix == U) print("#d16 %d\n", v.u);
     else if (suffix == P) print("#d16 0x%x\n", v.p);
+    else if (suffix == F) {
+        error("Floats are not supported\n", 0);
+        exit(EXIT_FAILURE);
+    }
     else assert(0);
 }
 

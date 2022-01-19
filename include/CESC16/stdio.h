@@ -9,10 +9,10 @@
 
 
 /* Writes formatted output to the screen.  */
-extern void printf(const char *format, ...);
+extern int printf(const char *format, ...);
 
 /* Writes formatted output to a string pointed by str.  */
-extern void sprintf(char *str, const char *format, ...);
+extern int sprintf(char *str, const char *format, ...);
 
 /* Writes formatted output to the screen, using an argument list passed to it.  */
 extern int vprintf(const char *format, va_list arg);

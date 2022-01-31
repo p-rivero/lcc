@@ -370,8 +370,8 @@ Tree simplify(int op, Type ty, Tree l, Tree r) {
 			||  r->op == CNST+U && r->u.v.u <= longtype->u.sym->u.limits.max.i))
 				return simplify(ADD+P, ty, l->kids[0],
 					addrtree(l->kids[1], cast(r, longtype)->u.v.i, ty));
-			if ((l->op == ADD+I || l->op == SUB+I)
-			&& l->kids[1]->op == CNST+I && isaddrop(r->op))
+			if ((l->op == ADD+I || l->op == SUB+I || l->op == ADD+U || l->op == SUB+U)
+			&& (l->kids[1]->op == CNST+I || l->kids[1]->op == CNST+U) && isaddrop(r->op))
 				return simplify(ADD+P, ty, l->kids[0],
 					simplify(generic(l->op)+P, ty, r, l->kids[1]));
 			if (l->op == ADD+P && generic(l->kids[1]->op) == CNST

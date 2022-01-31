@@ -86,6 +86,9 @@ static void progbeg(int argc, char *argv[]) {
     vmask[IREG] = INTVAR;
     
     cseg = 0; // Don't start at any specific bank
+    
+    // Print out the header
+    print("#include <OS.inc>\n\n");
 }
 
 
